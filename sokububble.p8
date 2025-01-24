@@ -28,6 +28,105 @@ function tgt_color(si)
  return col-11
 end
 
+function bub_color(si)
+ local col=si%16
+ if col<=6 then
+  return col-3
+ else
+  return si\16
+ end
+end
+
+function box_at(x,y,state)
+ for box in all(state.boxes) do
+  if box[1]==x and box[2]==y then
+   return box
+  end
+ end
+ return nil
+end
+
+player={}
+function player:new(x,y)
+ local o=setmetatable({},self)
+ self.__index=self
+
+ o.x=x
+ o.y=y
+ o.si=2
+
+ return o
+end
+
+function player:update(state)
+ local dx=0
+ local dy=0
+ if btnp(➡️) then
+  dx=1
+ elseif btnp(⬅️) then
+  dx=-1
+ elseif btnp(⬆️) then
+  dy=-1
+ elseif btnp(⬇️) then
+  dy=1
+ end
+
+ if dx==0 and dy==0 then
+  return
+ end
+
+ local lvl=state.level
+	local x1=self.x+dx
+	local y1=self.y+dy
+
+ if lvl:is_wall(x1,y1) then
+  --cannot enter wall
+  sfx(0)
+  return
+ end
+
+ local box=box_at(x1,y1,state)
+ if box!=nil then
+  local c=box[3]
+  if c!=state.view then
+   --cannot move this box color
+   sfx(0)
+   return
+  end
+  local x2=x1+dx
+  local y2=y1+dy
+  if (
+   lvl:is_wall(x2,y2)
+   or box_at(x2,y2,state)!=nil
+  ) then
+   --no room to push box
+   sfx(0)
+   return
+  end
+
+  --move box
+  box[1]=x2
+  box[2]=y2
+ end
+
+ self.x=x1
+ self.y=y1
+
+ --update sprite
+ if dx!=0 then
+  if dx>0 then
+   self.si=2
+  else
+   self.si=1
+  end
+ end
+
+ local bub=lvl:bubble(x1,y1)
+ if bub!=nil then
+  state.view=bub
+ end
+end
+
 level={}
 function level:new(
  lvl_index
@@ -62,17 +161,30 @@ function level:_cellhasflag(
  )
 end
 
+function level:is_wall(x,y)
+ return self:_cellhasflag(
+  x,y,flag_wall
+ )
+end
+
+function level:bubble(x,y)
+ local si=self:_sprite(x,y)
+ if fget(si,flag_bub) then
+  return bub_color(si)
+ end
+ return nil
+end
+
 function level:ini_state()
  local state={}
+ state.level=self
  state.view=0
  state.boxes={}
  for ix=0,self.ncols-1 do
   for iy=0,self.nrows-1 do
    local si=self:_sprite(ix,iy)
    if fget(si,flag_player) then
-    state.px=ix
-    state.py=iy
-    state.psi=si
+    state.player=player:new(ix,iy)
    elseif fget(si,flag_box) then
     add(
      state.boxes,
@@ -102,7 +214,8 @@ function level:_draw_fixed(state)
      dsi=8
     end
    elseif fget(si,flag_bub) then
-    dsi=si
+    local c=bub_color(si)
+    dsi=c*16+9
    end
    if dsi!=0 then
     spr(dsi,ix*8,iy*8)
@@ -126,11 +239,8 @@ function level:draw(state)
 	self:_draw_fixed(state)
 	self:_draw_boxes(state)
 
- spr(
-  state.psi,
-  state.px*8,
-  state.py*8
- )
+ local p=state.player
+ spr(p.si,p.x*8,p.y*8)
 end
 -->8
 function _init()
@@ -147,6 +257,7 @@ function _update()
  if btnp(❎) then
   state.view=(state.view+1)%4
  end
+ state.player:update(state)
 end
 __gfx__
 00000000000aa000000aa00004444440000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
@@ -193,3 +304,5 @@ __map__
 1000001500281810000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 1019001000182810000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 1010101010101010000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+__sfx__
+000100001e05000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
