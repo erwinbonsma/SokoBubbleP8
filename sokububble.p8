@@ -2,10 +2,10 @@ pico-8 cartridge // http://www.pico-8.com
 version 41
 __lua__
 level_defs={{
- name="intro",
+ name="intro 1",
  mapdef={0,0,8,8},
 },{
- name="intro-2",
+ name="intro 2",
  mapdef={7,0,8,8}
 }}
 
@@ -95,7 +95,7 @@ function printbig(s,x0,y0,c)
  print(s,x0,y0,c)
  for y=4,0,-1 do
   local yd=y0+y*2
-  for x=#s*4,0,-1 do
+  for x=#s*4-1,0,-1 do
    local xd=x0+x*2
    rectfill(
     xd,yd,xd+1,yd+1,
@@ -106,9 +106,9 @@ function printbig(s,x0,y0,c)
 end
 
 function draw_dialog(txt,y)
- local hw=#txt*4+4
- rectfill(63-hw,y,64+hw,y+20,1)
- printbig(txt,67-hw,y+5,4)
+ local hw=#txt*4+2
+ rectfill(64-hw,y,63+hw,y+17,1)
+ printbig(txt,67-hw,y+4,4)
 end
 
 function drop(obj,ymax,bounce)
@@ -157,6 +157,7 @@ function level_done_anim()
  start_level(
   state.level.idx+1
  )
+ yield() --allow anim swap
 end
 
 function animate_level_done()
