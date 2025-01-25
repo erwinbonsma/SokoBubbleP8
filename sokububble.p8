@@ -316,6 +316,8 @@ function level:new(
  o.y0=lvl_def.mapdef[2]
  o.ncols=lvl_def.mapdef[3]
  o.nrows=lvl_def.mapdef[4]
+ o.sx0=64-4*o.ncols
+ o.sy0=64-4*o.nrows
 
  return o
 end
@@ -395,7 +397,11 @@ function level:_draw_fixed(state)
     dsi=c*16+9
    end
    if dsi!=0 then
-    spr(dsi,ix*8,iy*8)
+    spr(
+     dsi,
+     self.sx0+ix*8,
+     self.sy0+iy*8
+    )
    end
   end
  end
@@ -407,7 +413,11 @@ function level:_draw_boxes(state)
   if box.c==state.view then
    si+=box.c*16
   end
-  spr(si,box.sx,box.sy)
+  spr(
+   si,
+   self.sx0+box.sx,
+   self.sy0+box.sy
+  )
  end
 end
 
@@ -416,11 +426,11 @@ function level:draw(state)
 	self:_draw_boxes(state)
 
  local p=state.player
- spr(p.si,p.sx,p.sy)
-
- cursor(64,0)
- color(1)
- print("#box="..state.box_cnt)
+ spr(
+  p.si,
+  self.sx0+p.sx,
+  self.sy0+p.sy
+ )
 end
 
 function level:is_done(state)
