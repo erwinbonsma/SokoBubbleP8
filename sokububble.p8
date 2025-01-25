@@ -37,9 +37,11 @@ function bub_color(si)
  end
 end
 
-function box_at(x,y,state)
+function box_at(sx,sy,state)
  for box in all(state.boxes) do
-  if box.x==x and box.y==y then
+  if (
+   box.sx==sx and box.sy==sy
+  ) then
    return box
   end
  end
@@ -51,14 +53,48 @@ function player:new(x,y)
  local o=setmetatable({},self)
  self.__index=self
 
- o.x=x
- o.y=y
+ o.sx=x*8
+ o.sy=y*8
  o.si=2
+ o.dx=0
+ o.dy=0
 
  return o
 end
 
+function player:_move(state)
+ self.sx+=self.dx
+ self.sy+=self.dy
+ if state.push_box!=nil then
+  state.push_box.sx+=self.dx
+  state.push_box.sy+=self.dy
+ end
+ if (
+  self.sx%8!=0 or self.sy%8!=0
+ ) then
+  return
+ end
+
+ self.dx=0
+ self.dy=0
+ state.push_box=nil
+
+ local bub=lvl:bubble(
+  self.sx\8,self.sy\8
+ )
+ if bub!=nil then
+  state.view=bub
+ end
+end
+
 function player:update(state)
+ if (
+  self.dx!=0 or self.dy!=0
+ ) then
+  self:_move(state)
+  return
+ end
+
  local dx=0
  local dy=0
  if btnp(➡️) then
@@ -69,34 +105,32 @@ function player:update(state)
   dy=-1
  elseif btnp(⬇️) then
   dy=1
- end
-
- if dx==0 and dy==0 then
+ else
   return
  end
 
  local lvl=state.level
-	local x1=self.x+dx
-	local y1=self.y+dy
+	local sx1=self.sx+dx*8
+	local sy1=self.sy+dy*8
 
- if lvl:is_wall(x1,y1) then
+ if lvl:is_wall(sx1\8,sy1\8) then
   --cannot enter wall
   sfx(0)
   return
  end
 
- local box=box_at(x1,y1,state)
+ local box=box_at(sx1,sy1,state)
  if box!=nil then
   if box.c!=state.view then
    --cannot move this box color
    sfx(0)
    return
   end
-  local x2=x1+dx
-  local y2=y1+dy
+  local sx2=sx1+dx*8
+  local sy2=sy1+dy*8
   if (
-   lvl:is_wall(x2,y2)
-   or box_at(x2,y2,state)!=nil
+   lvl:is_wall(sx2\8,sy2\8)
+   or box_at(sx2,sy2,state)!=nil
   ) then
    --no room to push box
    sfx(0)
@@ -104,12 +138,11 @@ function player:update(state)
   end
 
   --move box
-  box.x=x2
-  box.y=y2
+  state.push_box=box
  end
 
- self.x=x1
- self.y=y1
+ self.dx=dx
+ self.dy=dy
 
  --update sprite
  if dx!=0 then
@@ -118,11 +151,6 @@ function player:update(state)
   else
    self.si=1
   end
- end
-
- local bub=lvl:bubble(x1,y1)
- if bub!=nil then
-  state.view=bub
  end
 end
 
@@ -179,6 +207,7 @@ function level:ini_state()
  state.level=self
  state.view=0
  state.boxes={}
+ state.push_box=nil
  for ix=0,self.ncols-1 do
   for iy=0,self.nrows-1 do
    local si=self:_sprite(ix,iy)
@@ -187,7 +216,9 @@ function level:ini_state()
    elseif fget(si,flag_box) then
     add(
      state.boxes,{
-      x=ix,y=iy,c=box_color(si)
+      sx=ix*8,
+      sy=iy*8,
+      c=box_color(si)
      }
     )
    end
@@ -230,7 +261,7 @@ function level:_draw_boxes(state)
   if box.c==state.view then
    si+=box.c*16
   end
-  spr(si,box.x*8,box.y*8)
+  spr(si,box.sx,box.sy)
  end
 end
 
@@ -239,7 +270,7 @@ function level:draw(state)
 	self:_draw_boxes(state)
 
  local p=state.player
- spr(p.si,p.x*8,p.y*8)
+ spr(p.si,p.sx,p.sy)
 end
 -->8
 function _init()
@@ -252,7 +283,7 @@ function _draw()
  lvl:draw(state)
 end
 
-function _update()
+function _update60()
  if btnp(❎) then
   state.view=(state.view+1)%4
  end
