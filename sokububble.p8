@@ -80,9 +80,7 @@ function coinvoke(wrapped_cr)
  return costatus(cr)=="dead"
 end
 
-function animate(anim)
- while not coinvoke(anim) do
- end
+function no_draw()
 end
 
 function wait(steps)
@@ -154,9 +152,7 @@ end
 
 function level_done_anim()
  wait(30)
- start_level(
-  state.level.idx+1
- )
+ start_level(state.level.idx+1)
  yield() --allow anim swap
 end
 
@@ -171,6 +167,20 @@ function animate_level_done()
  return anim
 end
 
+function retry_anim()
+ sfx(2)
+ wait(30)
+ start_level(state.level.idx)
+ yield() --allow anim swap
+end
+
+function animate_retry()
+ local anim=cowrap(
+  "retry",retry_anim
+ )
+ anim.draw=no_draw
+ return anim
+end
 -->8
 player={}
 function player:new(x,y)
@@ -182,6 +192,7 @@ function player:new(x,y)
  o.si=2
  o.dx=0
  o.dy=0
+ o.retry_cnt=0
 
  return o
 end
@@ -217,6 +228,17 @@ function player:update(state)
  ) then
   self:_move(state)
   return
+ end
+
+ if btn(❎) then
+  self.retry_cnt+=1
+  self.si=3-self.si
+  if self.retry_cnt>30 then
+   state.anim=animate_retry()
+  end
+  return
+ else
+  self.kill_cnt=0
  end
 
  local dx=0
@@ -505,3 +527,4 @@ __map__
 __sfx__
 000100001e05000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 000200001a05000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+001400001c05018050100501005000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
