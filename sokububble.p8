@@ -39,7 +39,7 @@ end
 
 function box_at(x,y,state)
  for box in all(state.boxes) do
-  if box[1]==x and box[2]==y then
+  if box.x==x and box.y==y then
    return box
   end
  end
@@ -87,8 +87,7 @@ function player:update(state)
 
  local box=box_at(x1,y1,state)
  if box!=nil then
-  local c=box[3]
-  if c!=state.view then
+  if box.c!=state.view then
    --cannot move this box color
    sfx(0)
    return
@@ -105,8 +104,8 @@ function player:update(state)
   end
 
   --move box
-  box[1]=x2
-  box[2]=y2
+  box.x=x2
+  box.y=y2
  end
 
  self.x=x1
@@ -187,8 +186,9 @@ function level:ini_state()
     state.player=player:new(ix,iy)
    elseif fget(si,flag_box) then
     add(
-     state.boxes,
-     {ix,iy,box_color(si)}
+     state.boxes,{
+      x=ix,y=iy,c=box_color(si)
+     }
     )
    end
   end
@@ -226,12 +226,11 @@ end
 
 function level:_draw_boxes(state)
  for box in all(state.boxes) do
-  local c=box[3]
   local si=3
-  if c==state.view then
-   si+=c*16
+  if box.c==state.view then
+   si+=box.c*16
   end
-  spr(si,box[1]*8,box[2]*8)
+  spr(si,box.x*8,box.y*8)
  end
 end
 
