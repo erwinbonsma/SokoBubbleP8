@@ -4,9 +4,11 @@ __lua__
 level_defs={{
  name="intro 1",
  mapdef={0,0,8,8},
+ ini_view=0
 },{
  name="intro 2",
- mapdef={7,0,8,8}
+ mapdef={7,0,8,8},
+ ini_view=3
 }}
 
 --sprite flags
@@ -204,7 +206,7 @@ function player:new(x,y)
  o.sd=0
  o.dx=0
  o.dy=0
- o.rot=0
+ o.rot=180
  o.tgt_rot=nil
  o.retry_cnt=0
 
@@ -428,7 +430,10 @@ function player:draw(state)
   end
  end
 
- if state.view!=0 then
+ if (
+  self.retry_cnt==0
+  and state.view!=0
+ ) then
   pal(15,colors[state.view])
  end
  spr(
@@ -458,6 +463,7 @@ function level:new(
  o.nrows=lvl_def.mapdef[4]
  o.sx0=64-4*o.ncols
  o.sy0=64-4*o.nrows
+ o.ini_view=lvl_def.ini_view
 
  return o
 end
@@ -492,7 +498,7 @@ end
 
 function level:update_state(s)
  s.level=self
- s.view=0
+ s.view=self.ini_view
  s.boxes={}
  s.box_cnt=0
  s.push_box=nil
