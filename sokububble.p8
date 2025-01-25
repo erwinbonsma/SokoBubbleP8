@@ -16,6 +16,8 @@ flag_box=2
 flag_tgt=3
 flag_bub=4
 
+colors={8,3,1}
+
 function delta_rot(r1,r2)
  local d=r2-r1
  if d>180 then
@@ -421,11 +423,15 @@ function player:draw(state)
   end
  end
 
+ if state.view!=0 then
+  pal(15,colors[state.view])
+ end
  spr(
   si,
   lvl.sx0+self.sx,
   lvl.sy0+self.sy
  )
+ pal()
 end
 
 
