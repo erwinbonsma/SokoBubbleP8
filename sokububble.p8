@@ -223,35 +223,40 @@ end
 
 function player:_move(state)
  local done=false
-	self.move_step+=1
-	if self.move_step<=10 then
-  self.sx+=self.dx
-  self.sy+=self.dy
+ local mov=self.mov
+ mov.step+=1
+ if mov.step<=10 then
+  self.sx+=mov.dx
+  self.sy+=mov.dy
   self.sd=(
-   self.sd+3+self.dx+self.dy
+   self.sd+3+mov.dx+mov.dy
   )%3
 
   if state.push_box==nil then
-   done=self.move_step==8
-  elseif self.move_step>2 then
-   state.push_box.sx+=self.dx
-   state.push_box.sy+=self.dy
+   done=mov.step==8
+  elseif mov.step>2 then
+   state.push_box.sx+=mov.dx
+   state.push_box.sy+=mov.dy
   end
+ elseif (
+  self.movq!=nil
+  and self.movq.rot==self.rot
+ ) then
+  --continue into next move
+  self:_start_queued_move(state)
  else
-  self.sx-=self.dx
-  self.sy-=self.dy
+  --retreat after placing box
+  self.sx-=mov.dx
+  self.sy-=mov.dy
   self.sd=(
-   self.sd+3-self.dx-self.dy
+   self.sd+3-mov.dx-mov.dy
   )%3
-  done=self.move_step==12
+  done=self.mov.step==12
  end
 
- if done then
-  self.dx=0
-  self.dy=0
-  self.move_step=nil
-  state.push_box=nil
-
+ if (
+  self.sx%8==0 and self.sy%8==0
+ ) then
   local bub=state.level:bubble(
    self.sx\8,self.sy\8
   )
@@ -259,54 +264,27 @@ function player:_move(state)
    state.view=bub
   end
  end
+
+ if done then
+  self.mov=nil
+  state.push_box=nil
+ end
 end
 
-function player:update(state)
- if self.tgt_rot then
-  self:_rotate()
-  return
- end
- if (
-  self.dx!=0 or self.dy!=0
- ) then
-  self:_move(state)
-  return
+function player:_check_move(
+ mov,state
+)
+ local sx=self.sx
+ local sy=self.sy
+ if self.mov!=nil then
+  sx=self.mov.tgt_sx
+  sy=self.mov.tgt_sy
  end
 
- if btn(❎) then
-  self.retry_cnt+=1
-  self.si=3-self.si
-  if self.retry_cnt>30 then
-   state.anim=animate_retry()
-  end
-  return
- else
-  self.kill_cnt=0
- end
-
- local dx=0
- local dy=0
- local tgt_rot
- if btnp(➡️) then
-  dx=1
-  tgt_rot=90
- elseif btnp(⬅️) then
-  dx=-1
-  tgt_rot=270
- elseif btnp(⬆️) then
-  dy=-1
-  tgt_rot=0
- elseif btnp(⬇️) then
-  dy=1
-  tgt_rot=180
- else
-  return
- end
+ local sx1=sx+mov.dx*8
+ local sy1=sy+mov.dy*8
 
  local lvl=state.level
-	local sx1=self.sx+dx*8
-	local sy1=self.sy+dy*8
-
  if lvl:is_wall(sx1\8,sy1\8) then
   --cannot enter wall
   sfx(0)
@@ -320,8 +298,8 @@ function player:update(state)
    sfx(0)
    return
   end
-  local sx2=sx1+dx*8
-  local sy2=sy1+dy*8
+  local sx2=sx1+mov.dx*8
+  local sy2=sy1+mov.dy*8
   if (
    lvl:is_wall(sx2\8,sy2\8)
    or box_at(sx2,sy2,state)!=nil
@@ -330,24 +308,89 @@ function player:update(state)
    sfx(0)
    return
   end
-
-  --move box
-  state.push_box=box
  end
 
- self.dx=dx
- self.dy=dy
- self.move_step=0
+ mov.tgt_sx=sx1
+ mov.tgt_sy=sy1
+ return mov
+end
 
- if tgt_rot!=self.rot then
+function player:_start_queued_move(
+ state
+)
+ assert(self.movq!=nil)
+ local mov=self.movq
+ self.movq=nil
+
+ if self.mov!=nil then
+  local dsx=abs(
+   self.mov.tgt_sx-self.sx
+  )
+  local dsy=abs(
+   self.mov.tgt_sy-self.sy
+  )
+
+  assert(dsx<=2)
+  assert(dsy<=2)
+  mov.step=max(dsx,dsy)
+ else
+  mov.step=0
+ end
+
+ self.mov=mov
+ state.push_box=box_at(
+  mov.tgt_sx,
+  mov.tgt_sy,
+  state
+ )
+
+ if mov.rot!=self.rot then
   if (
-   tgt_rot%180==self.rot%180
+   mov.rot%180==self.rot%180
   ) then
    --skip 180-turn
-   self.rot=tgt_rot
+   self.rot=mov.rot
   else
-   self.tgt_rot=tgt_rot
+   self.tgt_rot=mov.rot
   end
+ end
+end
+
+function player:update(state)
+ --allow player to queue a move
+ local req_mov=nil
+ if btnp(➡️) then
+  req_mov={rot=90,dx=1,dy=0}
+ elseif btnp(⬅️) then
+  req_mov={rot=270,dx=-1,dy=0}
+ elseif btnp(⬆️) then
+  req_mov={rot=0,dx=0,dy=-1}
+ elseif btnp(⬇️) then
+  req_mov={rot=180,dx=0,dy=1}
+ end
+ if req_mov!=nil then
+  self.movq=self:_check_move(
+   req_mov,state
+  )
+ end
+
+ --handle level retry
+ if btn(❎) then
+  self.retry_cnt+=1
+  if self.retry_cnt>30 then
+   state.anim=animate_retry()
+  end
+  return
+ else
+  self.retry_cnt=0
+ end
+
+ if self.tgt_rot then
+  self:_rotate()
+ elseif self.mov then
+  self:_move(state)
+ elseif self.movq!=nil then
+  self:_start_queued_move(state)
  end
 end
 
@@ -545,7 +588,7 @@ function _draw()
  end
 end
 
-function _update60()
+function _update()
  if state.anim then
   if coinvoke(state.anim) then
    state.anim=nil
