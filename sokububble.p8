@@ -292,6 +292,17 @@ function player:_check_move(
  end
 
  local box=box_at(sx1,sy1,state)
+ if (
+  box==nil
+  and self.mov!=nil
+  and self.mov.rot==mov.rot
+ and state.push_box!=nil
+ ) then
+  --pushed box is not (always)
+  --bound by box_at
+  box=state.push_box
+ end
+
  if box!=nil then
   if box.c!=state.view then
    --cannot move this box color
