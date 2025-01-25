@@ -222,36 +222,49 @@ function player:_rotate(state)
 end
 
 function player:_move(state)
- self.sx+=self.dx
- self.sy+=self.dy
- self.sd=(
-  self.sd+3+self.dx+self.dy
- )%3
- if state.push_box!=nil then
-  state.push_box.sx+=self.dx
-  state.push_box.sy+=self.dy
- end
- if (
-  self.sx%8!=0 or self.sy%8!=0
- ) then
-  return
+ local done=false
+	self.move_step+=1
+	if self.move_step<=10 then
+  self.sx+=self.dx
+  self.sy+=self.dy
+  self.sd=(
+   self.sd+3+self.dx+self.dy
+  )%3
+
+  if state.push_box==nil then
+   done=self.move_step==8
+  elseif self.move_step>2 then
+   state.push_box.sx+=self.dx
+   state.push_box.sy+=self.dy
+  end
+ else
+  self.sx-=self.dx
+  self.sy-=self.dy
+  self.sd=(
+   self.sd+3-self.dx-self.dy
+  )%3
+  done=self.move_step==12
  end
 
- self.dx=0
- self.dy=0
- state.push_box=nil
+ if done then
+  self.dx=0
+  self.dy=0
+  self.move_step=nil
+  state.push_box=nil
 
- local bub=state.level:bubble(
-  self.sx\8,self.sy\8
- )
- if bub!=nil then
-  state.view=bub
+  local bub=state.level:bubble(
+   self.sx\8,self.sy\8
+  )
+  if bub!=nil then
+   state.view=bub
+  end
  end
 end
 
 function player:update(state)
  if self.tgt_rot then
   self:_rotate()
+  return
  end
  if (
   self.dx!=0 or self.dy!=0
@@ -324,6 +337,8 @@ function player:update(state)
 
  self.dx=dx
  self.dy=dy
+ self.move_step=0
+
  if tgt_rot!=self.rot then
   if (
    tgt_rot%180==self.rot%180
@@ -530,7 +545,7 @@ function _draw()
  end
 end
 
-function _update()
+function _update60()
  if state.anim then
   if coinvoke(state.anim) then
    state.anim=nil
