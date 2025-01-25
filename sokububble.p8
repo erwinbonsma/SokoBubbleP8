@@ -398,12 +398,17 @@ function player:update(state)
   self.retry_cnt=0
  end
 
+ if (
+  self.movq!=nil
+  and self.mov==nil
+ ) then
+  self:_start_queued_move(state)
+ end
+
  if self.tgt_rot then
   self:_rotate()
  elseif self.mov then
   self:_move(state)
- elseif self.movq!=nil then
-  self:_start_queued_move(state)
  end
 end
 
