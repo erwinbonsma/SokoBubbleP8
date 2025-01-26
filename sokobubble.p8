@@ -842,8 +842,7 @@ function show_title()
   },
   boxl={
    x=-8
-  },
-  label=true
+  }
  }
  _draw=title_draw
  _update60=title_update
@@ -974,7 +973,7 @@ function game_update()
   if coinvoke(state.anim) then
    state.anim=nil
   end
- elseif btnp(🅾️) then
+ elseif false and btnp(🅾️) then
   start_level(
    state.level.idx
    %#level_defs+1
