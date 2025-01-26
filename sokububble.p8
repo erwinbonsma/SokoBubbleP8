@@ -4,11 +4,11 @@ __lua__
 level_defs={{
  name="intro 1",
  mapdef={0,0,8,8},
- ini_view=0
+ ini_bubble=0
 },{
  name="intro 2",
  mapdef={7,0,8,8},
- ini_view=0
+ ini_bubble=0
 }}
 
 --sprite flags
@@ -268,7 +268,7 @@ function player:_move(state)
    self.sx\8,self.sy\8
   )
   if bub!=nil then
-   state.view=bub
+   state.bubble=bub
   end
  end
 
@@ -311,7 +311,7 @@ function player:_check_move(
  end
 
  if box!=nil then
-  if box.c!=state.view then
+  if box.c!=state.bubble then
    --cannot move this box color
    sfx(0)
    return
@@ -361,6 +361,7 @@ function player:_start_queued_move(
   mov.tgt_sy,
   state
  )
+ state.view_all=false
 
  if mov.rot!=self.rot then
   if (
@@ -436,7 +437,7 @@ function player:draw(state)
  if (
   self.retry_cnt==0
  ) then
-  pal(1,colors[state.view])
+  pal(1,colors[state.bubble])
  end
  spr(
   si,
@@ -465,7 +466,7 @@ function level:new(
  o.nrows=lvl_def.mapdef[4]
  o.sx0=64-4*o.ncols
  o.sy0=64-4*o.nrows
- o.ini_view=lvl_def.ini_view
+ o.ini_bubble=lvl_def.ini_bubble
 
  return o
 end
@@ -500,7 +501,8 @@ end
 
 function level:update_state(s)
  s.level=self
- s.view=self.ini_view
+ s.bubble=self.ini_bubble
+ s.view_all=true
  s.boxes={}
  s.box_cnt=0
  s.push_box=nil
@@ -533,7 +535,10 @@ function level:_draw_fixed(state)
     dsi=si
    elseif fget(si,flag_tgt) then
     local c=tgt_color(si)
-    if c==state.view then
+    if (
+     state.view_all
+     or state.bubble==c
+    )then
      dsi=si
     elseif fget(si,flag_bub) then
      c=bub_color(si)
@@ -559,7 +564,10 @@ end
 function level:_draw_boxes(state)
  for box in all(state.boxes) do
   local si=109
-  if box.c==state.view then
+  if (
+   state.view_all
+   or state.bubble==box.c
+  ) then
    si=48+box.c*16
   end
   spr(
@@ -597,7 +605,7 @@ function level:_box_on_tgt(box)
  end
 
  local c=tgt_color(si)
- return (c==-1 or c==box.c)
+ return c==-1 or c==box.c
 end
 
 function level:is_done(state)
