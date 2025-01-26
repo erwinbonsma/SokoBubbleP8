@@ -324,7 +324,7 @@ function plain_move_anim(args)
 
  for i=1,8 do
   plyr:_forward(mov)
-  yield()
+  if i!=8 then yield() end
  end
 end
 
@@ -345,8 +345,7 @@ function push_move_anim(args)
   if i>2 then
    mov.push_box:_push(mov)
   end
-
-  yield()
+  if i!=10 then yield() end
  end
 
  if (
@@ -356,7 +355,7 @@ function push_move_anim(args)
  ) then
   --continue into next move
   plyr:_start_queued_move(state)
-  yield()
+  yield() --allow anim swap
  else
   --retreat after placing box
   for i=1,2 do
