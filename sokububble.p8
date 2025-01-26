@@ -135,7 +135,7 @@ end
 function draw_dialog(txt,y)
  local hw=#txt*4+2
  rectfill(64-hw,y,63+hw,y+17,1)
- printbig(txt,67-hw,y+4,0)
+ printbig(txt,67-hw,y+4,7)
 end
 
 function drop(obj,ymax,bounce)
@@ -179,8 +179,10 @@ function show_dialog(txt)
  return anim
 end
 
-function level_done_anim()
+function level_done_anim(args)
+ local dialog=args[1]
  wait(15)
+ dialog.show=true
  sfx(4)
  wait(30)
  start_level(state.level.idx+1)
@@ -188,12 +190,16 @@ function level_done_anim()
 end
 
 function animate_level_done()
+ local dialog={show=false}
  local anim=cowrap(
   "level_done",
-  level_done_anim
+  level_done_anim,
+  dialog
  )
  anim.draw=function()
-  draw_dialog("solved!",58)
+  if dialog.show then
+   draw_dialog("solved!",58)
+  end
  end
  return anim
 end
@@ -784,13 +790,13 @@ end
 function start_level(idx)
  local lvl=level:new(idx)
  state=lvl:update_state({})
--- state.anim=show_dialog(
---  lvl.name
--- )
+ state.anim=show_dialog(
+  lvl.name
+ )
 end
 
 function _init()
- start_level(2)
+ start_level(1)
 end
 
 function _draw()
@@ -803,7 +809,7 @@ function _draw()
  end
 end
 
-function _update()
+function _update60()
  if state.anim then
   if coinvoke(state.anim) then
    state.anim=nil
