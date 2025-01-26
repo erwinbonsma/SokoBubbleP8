@@ -248,6 +248,10 @@ function box:on_tgt(level)
  return tgt==-1 or tgt==self.c
 end
 
+function box:_push(mov)
+ self.sx+=mov.dx
+ self.sy+=mov.dy
+end
 -->8
 --player
 
@@ -280,40 +284,87 @@ function player:_rotate(state)
  end
 end
 
-function player:_move(state)
- local done=false
- local mov=self.mov
- mov.step+=1
- if mov.step<=10 then
-  self.sx+=mov.dx
-  self.sy+=mov.dy
-  self.sd=(
-   self.sd+3+mov.dx+mov.dy
-  )%3
+function player:_forward(mov)
+ self.sx+=mov.dx
+ self.sy+=mov.dy
+ self.sd=(
+  self.sd+3+mov.dx+mov.dy
+ )%3
+end
 
-  if state.push_box==nil then
-   done=mov.step==8
-  elseif mov.step>2 then
-   state.push_box.sx+=mov.dx
-   state.push_box.sy+=mov.dy
-   if mov.step==3 then
-    sfx(0)
-   end
+function player:_backward(mov)
+ self.sx-=mov.dx
+ self.sy-=mov.dy
+ self.sd=(
+  self.sd+3-mov.dx-mov.dy
+ )%3
+end
+
+function blocked_move_anim(args)
+ local mov=args[1]
+ local plyr=args[2]
+
+ plyr:_forward(mov)
+ yield()
+
+ sfx(1)
+ yield()
+
+ plyr:_backward(mov)
+ yield()
+end
+
+function plain_move_anim(args)
+ local mov=args[1]
+ local plyr=args[2]
+
+ for i=1,8 do
+  plyr:_forward(mov)
+  yield()
+ end
+end
+
+function push_move_anim(args)
+ local mov=args[1]
+ local plyr=args[2]
+
+ local start=1
+ if (
+  plyr.sx%8!=0 or plyr.sy%8!=0
+ ) then
+  --continuing prev push move
+  start=3
+ end
+
+ for i=start,10 do
+  plyr:_forward(mov)
+  if i>2 then
+   mov.push_box:_push(mov)
   end
- elseif (
-  self.movq!=nil
-  and self.movq.rot==self.rot
+
+  yield()
+ end
+
+ if (
+  plyr.movq!=nil
+  and not plyr.movq.blocked
+  and plyr.movq.rot==plyr.rot
  ) then
   --continue into next move
-  self:_start_queued_move(state)
+  plyr:_start_queued_move(state)
+  yield()
  else
   --retreat after placing box
-  self.sx-=mov.dx
-  self.sy-=mov.dy
-  self.sd=(
-   self.sd+3-mov.dx-mov.dy
-  )%3
-  done=self.mov.step==12
+  for i=1,2 do
+   plyr:_backward(mov)
+   yield()
+  end
+ end
+end
+
+function player:_move(state)
+ if coinvoke(self.mov.anim) then
+  self.mov=nil
  end
 
  if (
@@ -326,11 +377,47 @@ function player:_move(state)
    state.bubble=bub
   end
  end
+end
 
- if done then
-  self.mov=nil
-  state.push_box=nil
+function player:_is_blocked(
+ mov,state
+)
+ local x1=mov.tgt_x
+ local y1=mov.tgt_y
+
+ local lvl=state.level
+ if lvl:is_wall(x1,y1) then
+  return true
  end
+
+ local box=box_at(x1,y1,state)
+ if (
+  box==nil
+  and self.mov!=nil
+  and self.mov.rot==mov.rot
+ ) then
+  --pushed box is not (always)
+  --bound by box_at
+  box=self.mov.push_box
+ end
+
+ if box!=nil then
+  if box.c!=state.bubble then
+   --cannot move this box color
+   return true
+  end
+  local x2=x1+mov.dx
+  local y2=y1+mov.dy
+  if (
+   lvl:is_wall(x2,y2)
+   or box_at(x2,y2,state)!=nil
+  ) then
+   --no room to push box
+   return true
+  end
+ end
+
+ return false
 end
 
 function player:_check_move(
@@ -347,46 +434,17 @@ function player:_check_move(
 
  local x1=x+mov.dx
  local y1=y+mov.dy
-
- local lvl=state.level
- if lvl:is_wall(x1,y1) then
-  --cannot enter wall
-  sfx(1)
-  return
- end
-
- local box=box_at(x1,y1,state)
- if (
-  box==nil
-  and self.mov!=nil
-  and self.mov.rot==mov.rot
- and state.push_box!=nil
- ) then
-  --pushed box is not (always)
-  --bound by box_at
-  box=state.push_box
- end
-
- if box!=nil then
-  if box.c!=state.bubble then
-   --cannot move this box color
-   sfx(1)
-   return
-  end
-  local x2=x1+mov.dx
-  local y2=y1+mov.dy
-  if (
-   lvl:is_wall(x2,y2)
-   or box_at(x2,y2,state)!=nil
-  ) then
-   --no room to push box
-   sfx(1)
-   return
-  end
- end
-
  mov.tgt_x=x1
  mov.tgt_y=y1
+
+ mov.blocked=self:_is_blocked(
+  mov,state
+ )
+ if mov.blocked then
+  mov.tgt_x=x
+  mov.tgt_y=y
+ end
+
  return mov
 end
 
@@ -397,25 +455,34 @@ function player:_start_queued_move(
  local mov=self.movq
  self.movq=nil
 
- if self.mov!=nil then
-  local dsx=abs(
-   self.mov.tgt_x*8-self.sx
-  )
-  local dsy=abs(
-   self.mov.tgt_y*8-self.sy
-  )
+ mov.push_box=box_at(
+  mov.tgt_x,mov.tgt_y,state
+ )
 
-  assert(dsx<=2)
-  assert(dsy<=2)
-  mov.step=max(dsx,dsy)
+ if mov.blocked then
+  printh("starting blocked anim")
+  mov.anim=cowrap(
+   "blocked_move",
+   blocked_move_anim,
+   mov,self
+  )
+ elseif mov.push_box!=nil then
+  printh("starting push anim")
+  mov.anim=cowrap(
+   "push_move",
+   push_move_anim,
+   mov,self
+  )
  else
-  mov.step=0
+  printh("starting move anim")
+  mov.anim=cowrap(
+   "plain_move",
+   plain_move_anim,
+   mov,self
+  )
  end
 
  self.mov=mov
- state.push_box=box_at(
-  mov.tgt_x,mov.tgt_y,state
- )
  state.view_all=false
 
  if mov.rot!=self.rot then
@@ -698,9 +765,9 @@ end
 function start_level(idx)
  local lvl=level:new(idx)
  state=lvl:update_state({})
- state.anim=show_dialog(
-  lvl.name
- )
+-- state.anim=show_dialog(
+--  lvl.name
+-- )
 end
 
 function _init()
@@ -717,7 +784,7 @@ function _draw()
  end
 end
 
-function _update60()
+function _update()
  if state.anim then
   if coinvoke(state.anim) then
    state.anim=nil
