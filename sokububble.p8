@@ -304,14 +304,18 @@ function blocked_move_anim(args)
  local mov=args[1]
  local plyr=args[2]
 
- plyr:_forward(mov)
- yield()
+ for i=1,mov.blocked do
+  plyr:_forward(mov)
+  yield()
+ end
 
  sfx(1)
  yield()
 
- plyr:_backward(mov)
- yield()
+ for i=1,mov.blocked do
+  plyr:_backward(mov)
+  yield()
+ end
 end
 
 function plain_move_anim(args)
@@ -347,7 +351,7 @@ function push_move_anim(args)
 
  if (
   plyr.movq!=nil
-  and not plyr.movq.blocked
+  and plyr.movq.blocked==0
   and plyr.movq.rot==plyr.rot
  ) then
   --continue into next move
@@ -379,6 +383,10 @@ function player:_move(state)
  end
 end
 
+--checks if move is blocked
+--if so, returns num pixels
+--that player can move. returns
+--zero otherwise
 function player:_is_blocked(
  mov,state
 )
@@ -386,8 +394,9 @@ function player:_is_blocked(
  local y1=mov.tgt_y
 
  local lvl=state.level
- if lvl:is_wall(x1,y1) then
-  return true
+ local ws=lvl:wall_size(x1,y1)
+ if ws!=0 then
+  return 5-ws\2
  end
 
  local box=box_at(x1,y1,state)
@@ -404,7 +413,7 @@ function player:_is_blocked(
  if box!=nil then
   if box.c!=state.bubble then
    --cannot move this box color
-   return true
+   return 2
   end
   local x2=x1+mov.dx
   local y2=y1+mov.dy
@@ -413,11 +422,11 @@ function player:_is_blocked(
    or box_at(x2,y2,state)!=nil
   ) then
    --no room to push box
-   return true
+   return 2
   end
  end
 
- return false
+ return 0
 end
 
 function player:_check_move(
@@ -440,7 +449,7 @@ function player:_check_move(
  mov.blocked=self:_is_blocked(
   mov,state
  )
- if mov.blocked then
+ if mov.blocked!=0 then
   mov.tgt_x=x
   mov.tgt_y=y
  end
@@ -459,7 +468,7 @@ function player:_start_queued_move(
   mov.tgt_x,mov.tgt_y,state
  )
 
- if mov.blocked then
+ if mov.blocked!=0 then
   printh("starting blocked anim")
   mov.anim=cowrap(
    "blocked_move",
@@ -614,6 +623,17 @@ function level:is_wall(x,y)
  return self:_cellhasflag(
   x,y,flag_wall
  )
+end
+
+function level:wall_size(x,y)
+ local si=self:_sprite(x,y)
+ if si==48 then
+  return 8
+ elseif si==49 then
+  return 6
+ else
+  return 0
+ end
 end
 
 function level:tgt_at(x,y)
