@@ -187,7 +187,12 @@ end
 function retry_anim()
  sfx(2)
  wait(30)
- start_level(state.level.idx)
+ local idx=state.level.idx
+ if state.view_all then
+  --start completely afresh
+  idx=1
+ end
+ start_level(idx)
  yield() --allow anim swap
 end
 
@@ -434,11 +439,12 @@ function player:draw(state)
   end
  end
 
- if (
-  self.retry_cnt==0
- ) then
-  pal(1,colors[state.bubble])
+ local idx=state.bubble
+ if self.retry_cnt>0 then
+  idx=self.retry_cnt\2%#colors
  end
+ pal(1,colors[idx])
+
  spr(
   si,
   lvl.sx0+self.sx,
