@@ -163,8 +163,10 @@ end
 
 function draw_dialog(txt,y)
  local hw=#txt*4+2
- rectfill(64-hw,y,63+hw,y+17,13)
- printbig(txt,67-hw,y+4,6)
+ rect(63-hw,y-1,63+hw,y+17,6)
+ rect(64-hw,y,64+hw,y+18,0)
+ rectfill(64-hw,y,63+hw,y+17,5)
+ printbig(txt,67-hw,y+4,0)
 end
 
 function drop(obj,ymax,bounce)
