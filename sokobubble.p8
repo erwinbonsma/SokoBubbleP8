@@ -6,52 +6,41 @@ __lua__
 
 level_defs={{
  name="bubbles",
- mapdef={0,8,7,7},
- ini_bubble=0
+ mapdef={0,8,7,7}
 },{
  name="targets",
- mapdef={7,8,7,7},
- ini_bubble=0
+ mapdef={7,8,7,7}
 },{
  name="stripes",
- mapdef={16,0,8,8},
- ini_bubble=0
+ mapdef={16,0,8,8}
 },{
  name="hidden",
- mapdef={0,0,8,8},
- ini_bubble=0
+ mapdef={0,0,8,8}
 },{
  name="all on target",
- mapdef={36,8,8,7},
- ini_bubble=0
+ mapdef={36,8,8,7}
 },{
  name="corners",
- mapdef={8,0,8,8},
- ini_bubble=0
+ mapdef={8,0,8,8}
 },{
  name="tiny",
- mapdef={14,8,7,7},
- ini_bubble=0
+ mapdef={14,8,7,7}
 },{
  name="stripes-2",
- mapdef={21,8,8,7},
- ini_bubble=0
+ mapdef={21,8,8,7}
 },{
  name="cross",
- mapdef={24,0,8,8},
- ini_bubble=0
+ mapdef={24,0,8,8}
 },{
  name="square",
- mapdef={40,0,8,8},
- ini_bubble=0
+ mapdef={40,0,8,8}
 },{
  name="the end",
  mapdef={29,8,7,6},
  ini_bubble=1
 },{
  name="wip",
- mapdef={32,0,8,8},
- ini_bubble=0
+ mapdef={32,0,8,8}
 }}
 
 --sprite flags
@@ -630,7 +619,9 @@ function level:new(
  o.nrows=lvl_def.mapdef[4]
  o.sx0=64-4*o.ncols
  o.sy0=67-4*o.nrows
- o.ini_bubble=lvl_def.ini_bubble
+ o.ini_bubble=(
+  lvl_def.ini_bubble or 0
+ )
 
  return o
 end
