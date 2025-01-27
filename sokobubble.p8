@@ -770,11 +770,13 @@ function level:draw(state)
  self:_draw_boxes(state)
  pal()
 
- rectfill(0,0,127,6,1)
+ rectfill(0,0,127,6,5)
  print(
-  self.name.."  "..state.mov_cnt,
+  "l"..self.idx..":"..self.name,
   1,1,0
  )
+ local s="#="..state.mov_cnt
+ print(s,128-#s*4,1,0)
 end
 
 function level:_box_on_tgt_at(
