@@ -433,7 +433,7 @@ function player:_is_blocked(
  end
 
  if box!=nil then
-  if box.c!=state.bubble then
+  if box.c!=mov.src_c then
    --cannot move this box color
    return 2
   end
@@ -458,9 +458,11 @@ function player:_check_move(
  if self.mov!=nil then
   x=self.mov.tgt_x
   y=self.mov.tgt_y
+  mov.src_c=self.mov.dst_c
  else
   x=self.sx\8
   y=self.sy\8
+  mov.src_c=state.bubble
  end
 
  local x1=x+mov.dx
@@ -475,6 +477,9 @@ function player:_check_move(
   mov.tgt_x=x
   mov.tgt_y=y
  end
+ mov.dst_c=state.level:bubble(
+  x1,y1
+ ) or mov.src_c
 
  return mov
 end
