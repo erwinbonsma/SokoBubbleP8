@@ -165,12 +165,25 @@ function printbig(s,x0,y0,c)
  end
 end
 
-function draw_dialog(txt,y)
- local hw=#txt*4+2
+dialog={}
+function dialog:new(txt,y)
+ local o=setmetatable({},self)
+ self.__index=self
+
+ o.txt=txt
+ o.y=y
+
+ return o
+end
+
+function dialog:draw()
+ local hw=#self.txt*4+2
+ local y=self.y
+
  rect(63-hw,y-1,63+hw,y+17,6)
  rect(64-hw,y,64+hw,y+18,0)
  rectfill(64-hw,y,63+hw,y+17,5)
- printbig(txt,67-hw,y+4,0)
+ printbig(self.txt,67-hw,y+4,0)
 end
 
 function drop(obj,ymax,bounce)
@@ -195,25 +208,40 @@ function drop(obj,ymax,bounce)
 end
 
 function level_done_anim(args)
- local dialog=args[1]
+ local state=args[1]
  wait(30)
- dialog.show=true
+ state.dialog=dialog:new(
+  "solved!",58
+ )
  sfx(4)
  wait(90)
+
+ if state.new_hi then
+  state.dialog=dialog:new(
+   "new hi!",58
+  )
+  sfx(4)
+  wait(90)
+ end
+ 
  start_level(_game.level.idx+1)
  yield() --allow anim swap
 end
 
-function animate_level_done()
- local dialog={show=false}
+function animate_level_done(
+ new_hi
+)
+ local state={
+  dialog=nil,new_hi=new_hi
+ }
  local anim=cowrap(
   "level_done",
   level_done_anim,
-  dialog
+  state
  )
  anim.draw=function()
-  if dialog.show then
-   draw_dialog("solved!",58)
+  if state.dialog then
+   state.dialog:draw()
   end
  end
  return anim
@@ -270,6 +298,7 @@ function stats:mark_done(
  local hi=self:get_hi(level_id)
  if hi==0 or num_moves<hi then
   dset(1+level_id,num_moves)
+  return true
  end
 end
 
@@ -1086,10 +1115,12 @@ function game:update()
   self.player:update(self)
 
   if lvl:is_done(self) then
-   _stats:mark_done(
+   local new_hi=_stats:mark_done(
     lvl.id,self.mov_cnt
    )
-   self.anim=animate_level_done()
+   self.anim=animate_level_done(
+    new_hi
+   )
   end
  end
 end
