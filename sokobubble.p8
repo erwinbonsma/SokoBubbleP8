@@ -3,7 +3,6 @@ version 41
 __lua__
 -- sokobubble v0.1
 -- (c) 2025 eriban
-
 level_defs={{
  name="bubbles",
  mapdef={0,8,7,7}
@@ -106,13 +105,12 @@ function bub_color(si)
  end
 end
 
-function box_at(x,y,state)
- for box in all(state.boxes) do
+function box_at(x,y,game)
+ for box in all(game.boxes) do
   if box:is_at(x,y) then
    return box
   end
  end
- return nil
 end
 
 --wrap coroutine with a name to
@@ -202,7 +200,7 @@ function level_done_anim(args)
  dialog.show=true
  sfx(4)
  wait(90)
- start_level(state.level.idx+1)
+ start_level(_game.level.idx+1)
  yield() --allow anim swap
 end
 
@@ -224,11 +222,11 @@ end
 function retry_anim()
  sfx(2)
  wait(30)
- if state.view_all then
+ if _game.mov_cnt==0 then
   --start completely afresh
-  show_title()
+  scene=_title
  else
-  start_level(state.level.idx)
+  start_level(_game.level.idx)
  end
  yield() --allow anim swap
 end
@@ -242,6 +240,8 @@ function animate_retry()
 end
 -->8
 stats={}
+vmajor=0
+vminor=1
 
 function stats:new()
  local o=setmetatable({},self)
@@ -267,12 +267,8 @@ end
 function stats:mark_done(
  level_id,num_moves
 )
- local best=self:get_moves(
-  level_id
- )
- if (
-  best==0 or num_moves<best
- ) then
+ local hi=self:get_hi(level_id)
+ if hi==0 or num_moves<hi then
   dset(1+level_id,num_moves)
  end
 end
@@ -323,12 +319,13 @@ end
 --player
 
 player={}
-function player:new(x,y)
+function player:new(x,y,bubble)
  local o=setmetatable({},self)
  self.__index=self
 
  o.sx=x*8
  o.sy=y*8
+ o.bubble=bubble
  o.sd=0
  o.dx=0
  o.dy=0
@@ -339,7 +336,7 @@ function player:new(x,y)
  return o
 end
 
-function player:_rotate(state)
+function player:_rotate()
  local drot=delta_rot(
   self.rot,self.tgt_rot
  )
@@ -423,7 +420,7 @@ function push_move_anim(args)
   and plyr.movq.rot==plyr.rot
  ) then
   --continue into next move
-  plyr:_start_queued_move(state)
+  plyr:_start_queued_move(_game)
   yield() --allow anim swap
  else
   --retreat after placing box
@@ -434,7 +431,7 @@ function push_move_anim(args)
  end
 end
 
-function player:_move(state)
+function player:_move(game)
  if coinvoke(self.mov.anim) then
   self.mov=nil
  end
@@ -442,14 +439,13 @@ function player:_move(state)
  if (
   self.sx%8==0 and self.sy%8==0
  ) then
-  local bub=state.level:bubble(
+  local bub=game.level:bubble(
    self.sx\8,self.sy\8
   )
   if (
-   bub!=nil
-   and bub!=state.bubble
+   bub!=nil and bub!=self.bubble
   ) then
-   state.bubble=bub
+   self.bubble=bub
    sfx(5)
   end
  end
@@ -460,18 +456,18 @@ end
 --that player can move. returns
 --zero otherwise
 function player:_is_blocked(
- mov,state
+ mov,game
 )
  local x1=mov.tgt_x
  local y1=mov.tgt_y
 
- local lvl=state.level
+ local lvl=game.level
  local ws=lvl:wall_size(x1,y1)
  if ws!=0 then
   return 5-ws\2
  end
 
- local box=box_at(x1,y1,state)
+ local box=box_at(x1,y1,game)
  if (
   box==nil
   and self.mov!=nil
@@ -491,7 +487,7 @@ function player:_is_blocked(
   local y2=y1+mov.dy
   if (
    lvl:is_wall(x2,y2)
-   or box_at(x2,y2,state)!=nil
+   or box_at(x2,y2,game)!=nil
   ) then
    --no room to push box
    return 2
@@ -502,7 +498,7 @@ function player:_is_blocked(
 end
 
 function player:_check_move(
- mov,state
+ mov,game
 )
  local x,y
  if self.mov!=nil then
@@ -512,7 +508,7 @@ function player:_check_move(
  else
   x=self.sx\8
   y=self.sy\8
-  mov.src_c=state.bubble
+  mov.src_c=self.bubble
  end
 
  local x1=x+mov.dx
@@ -521,13 +517,13 @@ function player:_check_move(
  mov.tgt_y=y1
 
  mov.blocked=self:_is_blocked(
-  mov,state
+  mov,game
  )
  if mov.blocked!=0 then
   mov.tgt_x=x
   mov.tgt_y=y
  end
- mov.dst_c=state.level:bubble(
+ mov.dst_c=game.level:bubble(
   x1,y1
  ) or mov.src_c
 
@@ -535,14 +531,14 @@ function player:_check_move(
 end
 
 function player:_start_queued_move(
- state
+ game
 )
  assert(self.movq!=nil)
  local mov=self.movq
  self.movq=nil
 
  mov.push_box=box_at(
-  mov.tgt_x,mov.tgt_y,state
+  mov.tgt_x,mov.tgt_y,game
  )
 
  if mov.blocked!=0 then
@@ -557,18 +553,17 @@ function player:_start_queued_move(
    push_move_anim,
    mov,self
   )
-  state.mov_cnt+=1
+  game.mov_cnt+=1
  else
   mov.anim=cowrap(
    "plain_move",
    plain_move_anim,
    mov,self
   )
-  state.mov_cnt+=1
+  game.mov_cnt+=1
  end
 
  self.mov=mov
- state.view_all=false
 
  if mov.rot!=self.rot then
   if (
@@ -582,7 +577,7 @@ function player:_start_queued_move(
  end
 end
 
-function player:update(state)
+function player:update(game)
  --allow player to queue a move
  local req_mov=nil
  if btnp(➡️) then
@@ -596,7 +591,7 @@ function player:update(state)
  end
  if req_mov!=nil then
   self.movq=self:_check_move(
-   req_mov,state
+   req_mov,game
   )
  end
 
@@ -604,7 +599,7 @@ function player:update(state)
  if btn(❎) then
   self.retry_cnt+=1
   if self.retry_cnt>30 then
-   state.anim=animate_retry()
+   game.anim=animate_retry()
   end
   return
  else
@@ -615,18 +610,18 @@ function player:update(state)
   self.movq!=nil
   and self.mov==nil
  ) then
-  self:_start_queued_move(state)
+  self:_start_queued_move(game)
  end
 
  if self.tgt_rot then
   self:_rotate()
  elseif self.mov then
-  self:_move(state)
+  self:_move(game)
  end
 end
 
-function player:draw(state)
- local lvl=state.level
+function player:draw(game)
+ local lvl=game.level
  local subrot=self.rot%90
  local row=(self.rot%180)\90
  local si
@@ -641,7 +636,7 @@ function player:draw(state)
   end
  end
 
- local idx=state.bubble
+ local idx=self.bubble
  if self.retry_cnt>0 then
   idx=self.retry_cnt\2%#colors
  end
@@ -663,36 +658,29 @@ end
 --level
 
 level={}
-function level:new(
- lvl_index
-)
+function level:new(lvl_index)
  local o=setmetatable({},self)
  self.__index=self
 
-	local lvl_def=level_defs[
-	 lvl_index
-	]
-	o.idx=lvl_index
-	o.name=lvl_def.name
+ local lvl_def=level_defs[
+  lvl_index
+ ]
+ o.idx=lvl_index
  o.x0=lvl_def.mapdef[1]
  o.y0=lvl_def.mapdef[2]
  o.ncols=lvl_def.mapdef[3]
  o.nrows=lvl_def.mapdef[4]
  o.sx0=64-4*o.ncols
  o.sy0=67-4*o.nrows
- o.ini_bubble=(
-  lvl_def.ini_bubble or 0
- )
+ o.lvl_def=lvl_def
 
- o.lvl_id=lvl_index
+ o.id=lvl_index
  if lvl_def.lvl_id!=nil then
   --allow reset of level hi
   --score after level changed
-  o.lvl_id=lvl_def.lvl_id
+  o.id=lvl_def.lvl_id
  end
- o.best_moves=stats:get_hi(
-  lvl_id
- )
+ o.hi_score=_stats:get_hi(o.id)
 
  return o
 end
@@ -745,22 +733,21 @@ function level:bubble(x,y)
  return nil
 end
 
-function level:update_state(s)
- s.level=self
- s.bubble=self.ini_bubble
- s.view_all=true
- s.boxes={}
- s.box_cnt=0
- s.mov_cnt=0
- s.push_box=nil
+function level:add_objects(game)
  for x=0,self.ncols-1 do
   for y=0,self.nrows-1 do
    local si=self:_sprite(x,y)
    if fget(si,flag_player) then
-    s.player=player:new(x,y)
+    local bubble=(
+     self.lvl_def.ini_bubble
+     or 0
+    )
+    game.player=player:new(
+     x,y,bubble
+    )
    elseif fget(si,flag_box) then
     add(
-     s.boxes,
+     game.boxes,
      box:new(x,y,box_color(si))
     )
    end
@@ -770,7 +757,7 @@ function level:update_state(s)
  return s
 end
 
-function level:_draw_fixed(state)
+function level:_draw_fixed(game)
  for x=0,self.ncols-1 do
   for y=0,self.nrows-1 do
    local si=self:_sprite(x,y)
@@ -780,12 +767,12 @@ function level:_draw_fixed(state)
    elseif fget(si,flag_tgt) then
     local c=tgt_color(si)
     local viz=(
-     state.view_all
-     or state.bubble==c
+     game.mov_cnt==0
+     or game.player.bubble==c
      or c==-1
     )
     if self:_box_on_tgt_at(
-     x,y,state
+     x,y,game
     ) then
      if c==-1 then
       dsi=109
@@ -816,12 +803,12 @@ function level:_draw_fixed(state)
  end
 end
 
-function level:_draw_boxes(state)
- for box in all(state.boxes) do
+function level:_draw_boxes(game)
+ for box in all(game.boxes) do
   local si=127
   if (
-   state.view_all
-   or state.bubble==box.c
+   game.mov_cnt==0
+   or game.player.bubble==box.c
   ) then
    si=48+box.c*16
   end
@@ -833,22 +820,23 @@ function level:_draw_boxes(state)
  end
 end
 
-function level:draw(state)
+function level:draw(game)
  pal(15,0)
- self:_draw_fixed(state)
- self:_draw_boxes(state)
+ self:_draw_fixed(game)
+ self:_draw_boxes(game)
  pal()
 
  rectfill(0,0,127,6,5)
  print(
-  "l"..self.idx..":"..self.name,
+  "l"..self.idx..":"
+  ..self.lvl_def.name,
   1,1,0
  )
  local s=(
-  "#="..state.mov_cnt.."/"
+  "#="..game.mov_cnt.."/"
  )
- if self.best_score>0 then
-  s..=self.best_score
+ if self.hi_score>0 then
+  s..=self.hi_score
  else
   s..="-"
  end
@@ -857,9 +845,9 @@ function level:draw(state)
 end
 
 function level:_box_on_tgt_at(
- x,y,state
+ x,y,game
 )
- for box in all(state.boxes) do
+ for box in all(game.boxes) do
   if (
    box:is_at(x,y)
    and box:on_tgt(self)
@@ -871,74 +859,71 @@ function level:_box_on_tgt_at(
  return false
 end
 
-function level:is_done(state)
- local old_cnt=state.box_cnt
- state.box_cnt=0
+function level:is_done(game)
+ local old_cnt=game.box_cnt
+ game.box_cnt=0
 
- for box in all(state.boxes) do
+ for box in all(game.boxes) do
   if box:on_tgt(self) then
-   state.box_cnt+=1
+   game.box_cnt+=1
   end
  end
 
- if state.box_cnt>old_cnt then
+ if game.box_cnt>old_cnt then
   sfx(3)
  end
 
- return state.box_cnt==#state.boxes
+ return game.box_cnt==#game.boxes
 end
 
 -->8
 --main
 
-function start_level(idx)
- local lvl=level:new(idx)
- state=lvl:update_state({})
-end
-
 function _init()
- stats=stats:new()
+ _stats=stats:new()
+ _title=title:new()
 
- show_title()
+ scene=_title
 end
 
-function start_game()
- _draw=game_draw
- _update60=game_update
- start_level(1)
+function _update60()
+ scene:update()
 end
 
-function show_title()
- title={
-  car={
-   x=60,
-   dx=0.5,
-   c=2
-  },
-  boxr={
-   x=116
-  },
-  boxl={
-   x=-8
-  }
- }
- _draw=title_draw
- _update60=title_update
+function _draw()
+ scene:draw()
 end
 
-function title_update()
+function start_level(idx)
+ _game=game:new(idx)
+ scene=_game
+end
+
+title={}
+function title:new()
+ local o=setmetatable({},self)
+ self.__index=self
+
+ o.car={x=60,dx=0.5,c=2}
+ o.boxr={x=116}
+ o.boxl={x=-8}
+
+ return o
+end
+
+function title:update()
  if btnp(🅾️) then
-  start_game()
+  start_level(1)
   return
  end
 
- local car=title.car
+ local car=self.car
  car.x+=car.dx
  if car.dx>0 then
   if car.x>122 then
    car.dx=-car.dx
   elseif car.x>110 then
-   local box=title.boxr
+   local box=self.boxr
    box.x=car.x+6
    if not box.touched then
     box.touched=true
@@ -948,14 +933,14 @@ function title_update()
    if car.c!=2 then sfx(5) end
    car.c=2
   elseif car.x>64 then
-   title.boxl.x=4
-   title.boxl.touched=false
+   self.boxl.x=4
+   self.boxl.touched=false
   end
  else
   if car.x<7 then
    car.dx=-car.dx
   elseif car.x<19 then
-   local box=title.boxl
+   local box=self.boxl
    box.x=car.x-14
    if not box.touched then
     box.touched=true
@@ -965,16 +950,10 @@ function title_update()
    if car.c!=4 then sfx(5) end
    car.c=4
   elseif car.x<64 then
-   title.boxr.x=116
-   title.boxr.touched=false
+   self.boxr.x=116
+   self.boxr.touched=false
   end
  end
-end
-
-function soko_title_pal()
- pal(15,2)
- pal(5,1)
- pal(6,13)
 end
 
 fillpats={
@@ -996,7 +975,7 @@ fillpats={
  0b0000000000001000
 }
 
-function title_draw()
+function title:draw()
  cls()
 
  srand(127)
@@ -1018,7 +997,9 @@ function title_draw()
  rectfill(28,24,99,55,0)
  rect(28,24,99,55,13)
 
- soko_title_pal()
+ pal(15,2)
+ pal(5,1)
+ pal(6,13)
  map(0,21,32,28,8,3)
  for x=0,6 do
   for y=0,1 do
@@ -1050,7 +1031,7 @@ function title_draw()
  spr(167,91,106)
 
  --draw car
- local car=title.car
+ local car=self.car
  pal(6,colors[car.c])
  pal(7,hi_colors[car.c])
  spr(
@@ -1061,40 +1042,54 @@ function title_draw()
 
  --draw boxes
  pal(colors[6-car.c],4)
- spr(183,title.boxr.x,113)
- spr(182,title.boxl.x,113)
+ spr(183,self.boxr.x,113)
+ spr(182,self.boxl.x,113)
  pal()
 end
 
-function game_draw()
- cls()
- state.level:draw(state)
- state.player:draw(state)
+game={}
+function game:new(level_idx)
+ local o=setmetatable({},self)
+ self.__index=self
 
- if state.anim!=nil then
-  state.anim.draw()
+ o.box_cnt=0
+ o.mov_cnt=0
+ o.boxes={}
+ o.level=level:new(level_idx)
+ o.level:add_objects(o)
+
+ return o
+end
+
+function game:draw()
+ cls()
+
+ self.level:draw(self)
+ self.player:draw(self)
+
+ if self.anim!=nil then
+  self.anim.draw()
  end
 end
 
-function game_update()
- if state.anim then
-  if coinvoke(state.anim) then
-   state.anim=nil
+function game:update()
+ local lvl=self.level
+ if self.anim then
+  if coinvoke(self.anim) then
+   self.anim=nil
   end
  elseif true and btnp(🅾️) then
   start_level(
-   state.level.idx
-   %#level_defs+1
+   lvl.idx%#level_defs+1
   )
  else
-  state.player:update(state)
+  self.player:update(self)
 
-  if state.level:is_done(state) then
-   stats:mark_done(
-    state.level.lvl_id,
-    state.mov_cnt
+  if lvl:is_done(self) then
+   _stats:mark_done(
+    lvl.id,self.mov_cnt
    )
-   state.anim=animate_level_done()
+   self.anim=animate_level_done()
   end
  end
 end
