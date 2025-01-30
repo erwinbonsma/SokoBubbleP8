@@ -57,6 +57,8 @@ level_defs={{
  name="wip",
  mapdef={32,0,8,8}
 }}
+max_level_id=#level_defs
+
 
 --sprite flags
 flag_player=0
@@ -239,6 +241,50 @@ function animate_retry()
  return anim
 end
 -->8
+stats={}
+
+function stats:new()
+ local o=setmetatable({},self)
+ self.__index=self
+
+ cartdata("eriban_sokobubble")
+ if (
+  dget(0)!=vmajor or
+  dget(1)<vminor
+ ) then
+  --reset incompatible data
+  for l=1,max_level_id do
+   dset(1+l,0)
+  end
+ end
+
+ dset(0,vmajor)
+ dset(1,vminor)
+
+ return o
+end
+
+function stats:mark_done(
+ level_id,num_moves
+)
+ local best=self:get_moves(
+  level_id
+ )
+ if (
+  best==0 or num_moves<best
+ ) then
+  dset(1+level_id,num_moves)
+ end
+end
+
+function stats:is_done(level_id)
+ return dget(1+level_id)>0
+end
+
+function stats:get_hi(level_id)
+ return dget(1+level_id)
+end
+
 box={}
 function box:new(x,y,c)
  local o=setmetatable({},self)
@@ -638,6 +684,16 @@ function level:new(
   lvl_def.ini_bubble or 0
  )
 
+ o.lvl_id=lvl_index
+ if lvl_def.lvl_id!=nil then
+  --allow reset of level hi
+  --score after level changed
+  o.lvl_id=lvl_def.lvl_id
+ end
+ o.best_moves=stats:get_hi(
+  lvl_id
+ )
+
  return o
 end
 
@@ -788,7 +844,15 @@ function level:draw(state)
   "l"..self.idx..":"..self.name,
   1,1,0
  )
- local s="#="..state.mov_cnt
+ local s=(
+  "#="..state.mov_cnt.."/"
+ )
+ if self.best_score>0 then
+  s..=self.best_score
+ else
+  s..="-"
+ end
+
  print(s,128-#s*4,1,0)
 end
 
@@ -833,6 +897,8 @@ function start_level(idx)
 end
 
 function _init()
+ stats=stats:new()
+
  show_title()
 end
 
@@ -1024,6 +1090,10 @@ function game_update()
   state.player:update(state)
 
   if state.level:is_done(state) then
+   stats:mark_done(
+    state.level.lvl_id,
+    state.mov_cnt
+   )
    state.anim=animate_level_done()
   end
  end
