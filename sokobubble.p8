@@ -58,7 +58,6 @@ level_defs={{
 }}
 max_level_id=#level_defs
 
-
 --sprite flags
 flag_player=0
 flag_wall=1
@@ -69,6 +68,17 @@ flag_bub=4
 colors={9,8,3,12}
 colors[0]=0
 hi_colors={10,14,11,6}
+
+function level_id(level_idx)
+ --level id allows reset of
+ --level progress after level
+ --changed
+
+ return (
+  level_defs[level_idx].lvl_id
+  or level_idx
+ )
+end
 
 function delta_rot(r1,r2)
  local d=r2-r1
@@ -314,6 +324,109 @@ end
 
 function stats:get_hi(level_id)
  return dget(1+level_id)
+end
+
+levelmenu={}
+function levelmenu:new()
+ local o=new_object(self)
+
+ o.ncols=4
+ o.nrows=5
+ o.cx=0
+ o.cy=0
+
+ return o
+end
+
+function levelmenu:_lvl_idx(x,y)
+ local idx=1+y*4
+ if y%2==0 then
+  idx+=x
+ else
+  idx+=3-x
+ end
+ if idx>#level_defs then
+  idx=nil
+ end
+ return idx
+end
+
+function levelmenu:update()
+ local cx=self.cx
+ local cy=self.cy
+
+ if btnp(➡️) then
+  cx=(cx+1)%self.ncols
+ elseif btnp(⬅️) then
+  cx=(cx+self.ncols-1)%self.ncols
+ elseif btnp(⬆️) then
+  cy=(cy+self.nrows-1)%self.nrows
+ elseif btnp(⬇️) then
+  cy=(cy+1)%self.nrows
+ else
+  if btnp(❎) then
+   start_level(
+    self:_lvl_idx(cx,cy)
+   )
+  end
+  return
+ end
+
+ local lvl_idx=self:_lvl_idx(
+  cx,cy
+ )
+ if lvl_idx==nil then
+  sfx(1)
+  return
+ end
+ local lvl_id=level_id(lvl_idx)
+ if not stats:is_done(lvl_id) then
+  sfx(1)
+  return
+ end
+
+ self.cx=cx
+ self.cy=cy
+end
+
+function levelmenu:draw()
+ cls()
+
+ for i=1,#level_defs do
+  local row=(i-1)\self.ncols
+  local col=(i-1)%self.ncols
+  if row%2==1 then
+   col=3-col
+  end
+
+  local x=col*24+16
+  local y=row*20+16
+  local lvl_id=level_id(i)
+  local focus=(
+   col==self.cx and row==self.cy
+  )
+  rectfill(
+   x,y,x+17,y+13,
+   focus and 6 or 5
+  )
+  local s=""..i
+  local c=0
+  if focus then
+   c=7
+  elseif stats:is_done(lvl_id) then
+   c=6
+  end
+  printbig(s,x+10-#s*4,y+2,c)
+
+  if focus then
+   local ld=level_defs[i]
+   print(ld.name,0,120,6)
+   local s=""..stats:get_hi(
+    lvl_id
+   )
+   print(s,127-4*#s,120,6)
+  end
+ end
 end
 
 box={}
@@ -706,12 +819,7 @@ function level:new(lvl_index)
  o.sy0=67-4*o.nrows
  o.lvl_def=lvl_def
 
- o.id=lvl_index
- if lvl_def.lvl_id!=nil then
-  --allow reset of level hi
-  --score after level changed
-  o.id=lvl_def.lvl_id
- end
+ o.id=level_id(lvl_index)
  o.hi_score=_stats:get_hi(o.id)
 
  return o
@@ -925,6 +1033,7 @@ end
 function _init()
  _stats=stats:new()
  _title=title:new()
+ _levelmenu=levelmenu:new()
 
  scene=_title
 end
@@ -955,7 +1064,7 @@ end
 
 function title:update()
  if btnp(🅾️) then
-  start_level(1)
+  scene=_levelmenu
   return
  end
 
