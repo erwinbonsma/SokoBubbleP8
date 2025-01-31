@@ -347,12 +347,7 @@ function levelmenu:new()
 end
 
 function levelmenu:_lvl_idx(x,y)
- local idx=1+y*4
- if y%2==0 then
-  idx+=x
- else
-  idx+=3-x
- end
+ local idx=1+y*4+x
  if idx>#level_defs then
   idx=nil
  end
@@ -402,9 +397,6 @@ function levelmenu:draw()
  for i=1,#level_defs do
   local row=(i-1)\self.ncols
   local col=(i-1)%self.ncols
-  if row%2==1 then
-   col=3-col
-  end
 
   local x=col*24+16
   local y=row*20+16
