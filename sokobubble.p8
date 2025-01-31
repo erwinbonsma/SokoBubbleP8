@@ -113,6 +113,14 @@ function box_at(x,y,game)
  end
 end
 
+function new_object(class)
+ local obj=setmetatable(
+  {},class
+ )
+ class.__index=class
+ return obj
+end
+
 --wrap coroutine with a name to
 --facilitate debugging crashes
 function cowrap(
@@ -167,8 +175,7 @@ end
 
 dialog={}
 function dialog:new(txt,y)
- local o=setmetatable({},self)
- self.__index=self
+ local o=new_object(self)
 
  o.txt=txt
  o.y=y
@@ -272,8 +279,7 @@ vmajor=0
 vminor=1
 
 function stats:new()
- local o=setmetatable({},self)
- self.__index=self
+ local o=new_object(self)
 
  cartdata("eriban_sokobubble")
  if (
@@ -312,8 +318,7 @@ end
 
 box={}
 function box:new(x,y,c)
- local o=setmetatable({},self)
- self.__index=self
+ local o=new_object(self)
 
  o.sx=x*8
  o.sy=y*8
@@ -349,8 +354,7 @@ end
 
 player={}
 function player:new(x,y,bubble)
- local o=setmetatable({},self)
- self.__index=self
+ local o=new_object(self)
 
  o.sx=x*8
  o.sy=y*8
@@ -688,8 +692,7 @@ end
 
 level={}
 function level:new(lvl_index)
- local o=setmetatable({},self)
- self.__index=self
+ local o=new_object(self)
 
  local lvl_def=level_defs[
   lvl_index
@@ -930,8 +933,7 @@ end
 
 title={}
 function title:new()
- local o=setmetatable({},self)
- self.__index=self
+ local o=new_object(self)
 
  o.car={x=60,dx=0.5,c=2}
  o.boxr={x=116}
@@ -1078,8 +1080,7 @@ end
 
 game={}
 function game:new(level_idx)
- local o=setmetatable({},self)
- self.__index=self
+ local o=new_object(self)
 
  o.box_cnt=0
  o.mov_cnt=0
