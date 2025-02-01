@@ -1075,7 +1075,7 @@ function title:new()
 end
 
 function title:update()
- if btnp(🅾️) then
+ if btnp(❎) then
   show_levelmenu()
   return
  end
@@ -1092,7 +1092,7 @@ function title:update()
     box.touched=true
     sfx(0)
    end
-  elseif car.x>88 then
+  elseif car.x>78 then
    if car.c!=2 then sfx(5) end
    car.c=2
   elseif car.x>64 then
@@ -1109,7 +1109,7 @@ function title:update()
     box.touched=true
     sfx(0)
    end
-  elseif car.x<40 then
+  elseif car.x<50 then
    if car.c!=4 then sfx(5) end
    car.c=4
   elseif car.x<64 then
@@ -1143,55 +1143,52 @@ function title:draw()
 
  srand(127)
  local p=0
- for y=0,20 do
+ for y=0,23 do
   for x=0,31 do
    local i=1+min(
-    y+flr(rnd(3)),16
+    flr((y+rnd(3))/1.1),16
    )
    fillp(fillpats[i])
    rectfill(
-    x*4,y*4+40,
+    x*4,y*4+28,
     x*4+3,y*4+43,2
    )
   end
  end
  fillp()
  
- rectfill(28,24,99,55,0)
- rect(28,24,99,55,13)
-
  pal(15,2)
  pal(5,1)
  pal(6,13)
- map(0,21,32,28,8,3)
+ map(0,21,32,20,8,3)
  for x=0,6 do
   for y=0,1 do
-   spr(128+x+y*16,x*8+40,y*8+49)
+   spr(128+x+y*16,x*8+40,y*8+41)
   end
  end
  pal()
 
  rectfill(0,121,127,127,5)
- rectfill(34,77,93,93,0)
+ rectfill(34,72,93,87,0)
 
- print("eriban's",48,18,13)
+ print("eriban's",48,13,13)
  print(
-  "⬅️➡️⬆️⬇️ move",37,79,13
+  "⬅️➡️⬆️⬇️ move",37,74,13
  )
  print(
-  "❎(hold) retry",37,87,13
+  "❎(hold) retry",37,81,13
  )
 
  print(
-  "press 🅾️ to start",30,122,0
+  "press ❎ to start",30,122,0
  ) 
 
  palt(15,true)
  palt(0,false)
 
  --draw bubbles
- spr(166,30,106)
- spr(167,91,106)
+ spr(166,40,106)
+ spr(167,81,106)
 
  --draw car
  local car=self.car
