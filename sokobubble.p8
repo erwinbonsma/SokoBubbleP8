@@ -56,6 +56,10 @@ level_defs={{
  mapdef={0,15,7,6},
  ini_bubble=1
 },
+--{
+-- name="wip-rgb-2",
+-- mapdef={64,0,8,8}
+--}
 }
 max_level_id=#level_defs
 
@@ -327,6 +331,15 @@ function stats:new()
  dset(0,vmajor)
  dset(1,vminor)
 
+ --find the maximum level the
+ --player can play
+ o.max_lvl_idx=1
+ while (
+  o:is_done(o.max_lvl_idx)
+ ) do
+  o.max_lvl_idx+=1
+ end
+
  return o
 end
 
@@ -339,6 +352,13 @@ function stats:mark_done(
    1+level_id(lvl_idx),
    num_moves
   )
+
+  if (
+   lvl_idx==self.max_lvl_idx
+  ) then
+   self.max_lvl_idx+=1
+  end
+
   return true
  end
 end
@@ -361,12 +381,6 @@ function levelmenu:new()
  )\o.ncols
  o.cx=0
  o.cy=0
- o.max_idx=#level_defs
- for i=#level_defs,1,-1 do
-  if not stats:is_done(i) then
-   o.max_idx=i
-  end
- end
 
  return o
 end
@@ -412,7 +426,9 @@ function levelmenu:update()
   sfx(1)
   return
  end
- if lvl_idx<=self.max_idx then
+ if (
+  lvl_idx<=_stats.max_lvl_idx
+ ) then
   self.cx=cx
   self.cy=cy
  else
@@ -431,7 +447,7 @@ function levelmenu:draw()
   local col=(i-1)%self.ncols
 
   local x=col*24+16
-  local y=row*20+16
+  local y=row*20+20
   local focus=(
    col==self.cx and row==self.cy
   )
@@ -443,9 +459,9 @@ function levelmenu:draw()
 
   local s=""..i
   local c=0
-  if i==self.max_idx then
+  if i==_stats.max_lvl_idx then
    c=5
-  elseif i<self.max_idx then
+  elseif i<_stats.max_lvl_idx then
    c=2
   end
   if i<#level_defs then
@@ -470,7 +486,7 @@ end
 
 function statsview:update()
  if btnp(❎) then
-  scene=_title
+  scene=_levelmenu
  end
 end
 
@@ -1085,6 +1101,7 @@ end
 
 function _init()
  _title=title:new()
+ _levelmenu=levelmenu:new()
  _stats=stats:new()
  _statsview=statsview:new()
 
@@ -1104,10 +1121,6 @@ function start_level(idx)
  scene=_game
 end
 
-function show_levelmenu()
- scene=levelmenu:new()
-end
-
 title={}
 function title:new()
  local o=new_object(self)
@@ -1121,7 +1134,7 @@ end
 
 function title:update()
  if btnp(❎) then
-  show_levelmenu()
+  scene=_levelmenu
   return
  end
 
@@ -1369,7 +1382,7 @@ ffffffff6555555ff555555fffffffffffffffff6555555fffffffff6555555fffffffffffffffff
 00e882000000000000e8820000e8820000e882000000000000000000d1111112d1111112d112d112d11111120ee00000000ee000ee000ee00000000000000000
 0e888820000000000e8888200e8888200e8888200000000000000000d1111112d1111112d112d112d1111112e880000000e8800e8800e8820000000000000000
 0e8888200000000eee8888200e8888200e888820000eeeee00000000d1112222d1111112d1121112d1111112e88000ee0ee8800e8800e8820ee0000000000000
-0e888820000ee0e8828888200e8888200e88882000e8888820000000d1112dd2d1122112d1111112d1122112e88eee8808828eee88eee882e888000000000000
+0e888820000ee0e8828888200e8888200e88882000e8888820000000d1112dd2d1122112d1111112d1122112e88ee08808828eee88eee882e888000000000000
 0e88882220e88288882888222e8888222e8888200e88888882000000d1111112d112d112d1111122d112d112e888882828828888288882828828200000000000
 0e88828882888828882882888288828882888820e888828882000000d1111112d112d112d1111122d112d112e888882828828888288882828888200000000000
 0e88888888288828882888888828888888288820e8882e8882000000d2221112d112d112d1111112d112d112e882882828828288282882828822000000000000
