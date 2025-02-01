@@ -581,7 +581,6 @@ function player:new(x,y,bubble)
  o.dy=0
  o.rot=180
  o.tgt_rot=nil
- o.retry_cnt=0
 
  return o
 end
@@ -849,9 +848,11 @@ function player:update(game)
 
  --handle level retry
  if btn(❎) then
-  self.retry_cnt+=1
-  if self.retry_cnt>30 then
-   game.anim=animate_retry()
+  if self.retry_cnt then
+   self.retry_cnt+=1
+   if self.retry_cnt>30 then
+    game.anim=animate_retry()
+   end
   end
   return
  else
@@ -889,7 +890,10 @@ function player:draw(game)
  end
 
  local idx=self.bubble
- if self.retry_cnt>0 then
+ if (
+  self.retry_cnt
+  and self.retry_cnt>0
+ ) then
   idx=self.retry_cnt\2%#colors
  end
  pal(1,0)
