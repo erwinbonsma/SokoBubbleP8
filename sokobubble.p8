@@ -40,11 +40,13 @@ level_defs={{
  name="corners",
  mapdef={8,0,8,8}
 },{
- name="cross",
- mapdef={24,0,8,8}
-},{
  name="square",
- mapdef={40,0,8,8}
+ mapdef={40,0,8,8},
+ id=14
+},{
+ name="cross",
+ mapdef={24,0,8,8},
+ id=13
 },{
 -- name="wip-rgb-2",
 -- mapdef={64,0,8,8}
@@ -81,7 +83,7 @@ function level_id(level_idx)
  --changed
 
  return (
-  level_defs[level_idx].lvl_id
+  level_defs[level_idx].id
   or level_idx
  )
 end
