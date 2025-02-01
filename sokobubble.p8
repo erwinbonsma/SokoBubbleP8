@@ -1,8 +1,9 @@
 pico-8 cartridge // http://www.pico-8.com
 version 41
 __lua__
--- sokobubble v0.1
+-- sokobubble v0.9
 -- (c) 2025 eriban
+
 level_defs={{
  name="bubbles",
  mapdef={0,8,7,7},
@@ -1323,7 +1324,7 @@ function game:update()
   if coinvoke(self.anim) then
    self.anim=nil
   end
- elseif true and btnp(🅾️) then
+ elseif false and btnp(🅾️) then
   start_level(
    lvl.idx%#level_defs+1
   )
