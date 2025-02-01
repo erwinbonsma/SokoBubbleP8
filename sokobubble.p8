@@ -28,13 +28,13 @@ level_defs={{
  name="enclosed",
  mapdef={48,0,8,8}
 },{
- name="stripes-2",
+ name="stripes 2",
  mapdef={21,8,8,7}
 },{
  name="rgb",
  mapdef={56,0,8,8}
 },{
- name="tiny four",
+ name="clover",
  mapdef={14,8,7,7}
 },{
  name="corners",
@@ -46,16 +46,17 @@ level_defs={{
  name="square",
  mapdef={40,0,8,8}
 },{
+-- name="wip-rgb-2",
+-- mapdef={64,0,8,8}
+--},{
+-- name="wip",
+-- mapdef={32,0,8,8}
+--},
  name="the end",
  mapdef={0,15,7,6},
  ini_bubble=1
-},{
- name="wip-rgb-2",
- mapdef={64,0,8,8}
-},{
- name="wip",
- mapdef={32,0,8,8}
-}}
+},
+}
 max_level_id=#level_defs
 
 --sprite flags
@@ -82,21 +83,29 @@ function level_id(level_idx)
 end
 
 function draw_level_info(
- level_idx,y,score
+ lvl_idx,y,score
 )
  rectfill(0,y,127,y+6,5)
+
+ if (
+  lvl_idx==#level_defs
+  and score==nil
+ ) then
+  print("stats",1,y+1,0)
+  return
+ end
+
  print(
-  "l"..level_idx..":"
-  ..level_defs[level_idx].name,
+  "l"..lvl_idx..":"
+  ..level_defs[lvl_idx].name,
   1,y+1,0
  )
+
  local s="#="
  if score then
   s..=score.."/"
  end
- local hi=stats:get_hi(
-  level_id(level_idx)
- )
+ local hi=stats:get_hi(lvl_idx)
  if hi>0 then
   s..=hi
  else
@@ -209,6 +218,14 @@ function printbig(s,x0,y0,c)
  end
 end
 
+function rect3d(
+ x,y,x2,y2,c,chi,clo
+)
+ rect(x-1,y-1,x2+1,y2+1,clo)
+ rect(x-1,y-1,x2,y2,chi)
+ rectfill(x,y,x2,y2,c)
+end
+
 dialog={}
 function dialog:new(txt,y)
  local o=new_object(self)
@@ -223,31 +240,10 @@ function dialog:draw()
  local hw=#self.txt*4+2
  local y=self.y
 
- rect(63-hw,y-1,63+hw,y+17,6)
- rect(64-hw,y,64+hw,y+18,0)
- rectfill(64-hw,y,63+hw,y+17,5)
+ rect3d(
+  64-hw,y,63+hw,y+17,5,6,0
+ )
  printbig(self.txt,67-hw,y+4,0)
-end
-
-function drop(obj,ymax,bounce)
- local a=0.03
- local v=0
-
- while true do
-  v+=a
-  obj.y+=v
-  if obj.y>ymax then
-   obj.y=ymax
-   if v>0.5 and bounce then
-    v=-v*0.5
-    sfx(1)
-   else
-    return
-   end
-  end
-
-  yield()
- end
 end
 
 function level_done_anim(args)
@@ -335,21 +331,24 @@ function stats:new()
 end
 
 function stats:mark_done(
- level_id,num_moves
+ lvl_idx,num_moves
 )
- local hi=self:get_hi(level_id)
+ local hi=self:get_hi(lvl_idx)
  if hi==0 or num_moves<hi then
-  dset(1+level_id,num_moves)
+  dset(
+   1+level_id(lvl_idx),
+   num_moves
+  )
   return true
  end
 end
 
-function stats:is_done(level_id)
- return dget(1+level_id)>0
+function stats:is_done(lvl_idx)
+ return self:get_hi(lvl_idx)>0
 end
 
-function stats:get_hi(level_id)
- return dget(1+level_id)
+function stats:get_hi(lvl_idx)
+ return dget(1+level_id(lvl_idx))
 end
 
 levelmenu={}
@@ -357,14 +356,14 @@ function levelmenu:new()
  local o=new_object(self)
 
  o.ncols=4
- o.nrows=5
+ o.nrows=(
+  #level_defs+o.ncols-1
+ )\o.ncols
  o.cx=0
  o.cy=0
  o.max_idx=#level_defs
  for i=#level_defs,1,-1 do
-  if not stats:is_done(
-   level_id(i)
-  ) then
+  if not stats:is_done(i) then
    o.max_idx=i
   end
  end
@@ -394,9 +393,14 @@ function levelmenu:update()
   cy=(cy+1)%self.nrows
  else
   if btnp(❎) then
-   start_level(
-    self:_lvl_idx(cx,cy)
+   local lvl_idx=self:_lvl_idx(
+    cx,cy
    )
+   if lvl_idx<#level_defs then
+    start_level(lvl_idx)
+   else
+    scene=_statsview
+   end
   end
   return
  end
@@ -431,12 +435,12 @@ function levelmenu:draw()
   local focus=(
    col==self.cx and row==self.cy
   )
-  rect(x-1,y-1,x+18,y+14,2)
-  rect(x-1,y-1,x+17,y+13,13)
-  rectfill(
+
+  rect3d(
    x,y,x+17,y+13,
-   focus and 8 or 1
+   focus and 8 or 1,13,2
   )
+
   local s=""..i
   local c=0
   if i==self.max_idx then
@@ -444,11 +448,51 @@ function levelmenu:draw()
   elseif i<self.max_idx then
    c=2
   end
-  printbig(s,x+10-#s*4,y+2,c)
-
+  if i<#level_defs then
+   printbig(s,x+10-#s*4,y+2,c)
+  else
+   pal(5,c)
+   spr(172,x+1,y+1,2,2)
+   pal()
+  end
   if focus then
    draw_level_info(i,120)
   end
+ end
+end
+
+statsview={}
+function statsview:new()
+ local o=new_object(self)
+
+ return o
+end
+
+function statsview:update()
+ if btnp(❎) then
+  scene=_title
+ end
+end
+
+function statsview:draw()
+ cls()
+
+ spr(135,32,0,8,2)
+
+ rect3d(
+  24,20,103,#level_defs*6+20,
+  1,13,2
+ )
+
+ for i=1,#level_defs-1 do
+  local y=i*6+18
+  print(
+   ""..i..". "..
+   level_defs[i].name,
+   32-(i\10)*4,y,13
+  )
+  local s="".._stats:get_hi(i)
+  print(s,100-#s*4,y,13)
  end
 end
 
@@ -1040,8 +1084,9 @@ end
 --main
 
 function _init()
- _stats=stats:new()
  _title=title:new()
+ _stats=stats:new()
+ _statsview=statsview:new()
 
  scene=_title
 end
@@ -1247,7 +1292,7 @@ function game:update()
 
   if lvl:is_done(self) then
    local new_hi=_stats:mark_done(
-    lvl.id,self.mov_cnt
+    lvl.idx,self.mov_cnt
    )
    self.anim=animate_level_done(
     new_hi
@@ -1337,16 +1382,16 @@ ffffffff6555555ff555555fffffffffffffffff6555555fffffffff6555555fffffffffffffffff
 00022220000222200002222000022220000222200022220000000000000000000000000000000000000000000000000000000000000000000000000000000000
 00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 ffffffffffffffffffffffffffffffffffffffffffffffffffcccfffff888fff0000000000000000000000000000000000000000000000000000000000000000
-fffffffffffffffffffffffffffffffffffffffffffffffffcccccfff88888ff0000000000000000000000000000000000000000000000000000000000000000
-ffffffffffffffffffffffffffffffffffffffffffffffffcc6ccc1f8898880f0000000000000000000000000000000000000000000000000000000000000000
+fffffffffffffffffffffffffffffffffffffffffffffffffcccccfff88888ff0000000000000000000000000000000000555555555555000000000000000000
+ffffffffffffffffffffffffffffffffffffffffffffffffcc6ccc1f8898880f0000000000000000000000000000000000555555555555000000000000000000
 ffffffffffffffffffffffffffffffffffffffffffffffffcccccc1f8888880f0000000000000000000000000000000000000000000000000000000000000000
-ffffffffffffffffffffffffffffffffffffffffffffffffcccccc1f8888880f0000000000000000000000000000000000000000000000000000000000000000
+ffffffffffffffffffffffffffffffffffffffffffffffffcccccc1f8888880f0000000000000000000000000000000000555550000055000000000000000000
 fffffffffffffffffffffffffffffffffffffffffffffffffcccc1fff88880ff0000000000000000000000000000000000000000000000000000000000000000
-ffffffffffffffffffffffffffffffffffffffffffffffffff111fffff000fff0000000000000000000000000000000000000000000000000000000000000000
+ffffffffffffffffffffffffffffffffffffffffffffffffff111fffff000fff0000000000000000000000000000000000555555500055000000000000000000
 fffffff66ffffffffffffff66ffffffffffffff66fffffffffffffffffffffff0000000660000000000000066000000000000000000000000000000000000000
-ffffff7666ffffffffffff7666ffffffffffff7666ffffffffffffffffffffff0000007666000000000000766600000000000000000000000000000000000000
+ffffff7666ffffffffffff7666ffffffffffff7666ffffffffffffffffffffff0000007666000000000000766600000000555550000055000000000000000000
 fffff766666ffffffffff766666ffffffffff766666fffffcccccccf8888888f0000076666600000000007666660000000000000000000000000000000000000
-f00000000000000ff00000000000000ff00000000000000fc1c1c1cf8282828f0111111111111110011111111111111000000000000000000000000000000000
+f00000000000000ff00000000000000ff00000000000000fc1c1c1cf8282828f0111111111111110011111111111111000555555000055000000000000000000
 f04044044044040ff04404404404400ff00440440440440fc1c1c1cf8282828f0144144144144110011441441441441000000000000000000000000000000000
 f45550000005554ff05550000005554ff45550000005550fc1c1c1cf8282828f0155511111155540045551111115551000000000000000000000000000000000
 f05050000005050ff45050000005054ff45050000005054fc1c1c1cf8282828f0450511111150540045051111115054000000000000000000000000000000000
