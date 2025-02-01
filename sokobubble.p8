@@ -20,7 +20,7 @@ level_defs={{
  mapdef={0,0,8,8},
  id=4
 },{
- name="stripes",
+ name="swap",
  mapdef={16,0,8,8},
  id=5
 },{
@@ -36,7 +36,7 @@ level_defs={{
  mapdef={48,0,8,8},
  id=8
 },{
- name="stripes 2",
+ name="swap 2",
  mapdef={21,8,8,7},
  id=9
 },{
@@ -518,20 +518,18 @@ function statsview:draw()
 
  spr(135,32,0,8,2)
 
- rect3d(
-  24,20,103,#level_defs*6+20,
-  1,13,2
- )
+ rect3d(1,22,126,107,1,13,2)
 
  for i=1,#level_defs-1 do
-  local y=i*6+18
+  local x=((i-1)\12)*64
+  local y=((i-1)%12)*7+24
   print(
-   ""..i..". "..
+   ""..i.."."..
    level_defs[i].name,
-   32-(i\10)*4,y,13
+   x+6-(i\10)*4,y,13
   )
   local s="".._stats:get_hi(i)
-  print(s,100-#s*4,y,13)
+  print(s,x+62-#s*4,y,13)
  end
 end
 
@@ -805,7 +803,9 @@ function player:_start_queued_move(
    push_move_anim,
    mov,self
   )
-  game.mov_cnt+=1
+  game.mov_cnt=min(
+   game.mov_cnt+1,999
+  )
  else
   mov.anim=cowrap(
    "plain_move",
