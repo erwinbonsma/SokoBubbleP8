@@ -1170,6 +1170,8 @@ function title:update()
  if btnp(❎) then
   scene=_levelmenu
   return
+ elseif btnp(⬅️) or btnp(➡️) then
+  easymode=not easymode
  end
 
  local car=self.car
@@ -1187,7 +1189,7 @@ function title:update()
   elseif car.x>78 then
    if car.c!=2 then sfx(5) end
    car.c=2
-  elseif car.x>64 then
+  elseif car.x>32 then
    self.boxl.x=4
    self.boxl.touched=false
   end
@@ -1204,7 +1206,7 @@ function title:update()
   elseif car.x<50 then
    if car.c!=4 then sfx(5) end
    car.c=4
-  elseif car.x<64 then
+  elseif car.x<95 then
    self.boxr.x=116
    self.boxr.touched=false
   end
@@ -1237,40 +1239,48 @@ function title:draw()
  local p=0
  for y=0,23 do
   for x=0,31 do
-   local i=1+min(
+   local i=min(
     flr((y+rnd(3))/1.1),16
    )
-   fillp(fillpats[i])
+   fillp(fillpats[i+1])
    rectfill(
     x*4,y*4+28,
-    x*4+3,y*4+43,2
+    x*4+3,y*4+43,13
    )
   end
  end
  fillp()
  
+ print("eriban's",48,5,13)
  pal(15,2)
  pal(5,1)
  pal(6,13)
- map(0,21,32,20,8,3)
+ map(0,21,32,12,8,3)
  for x=0,6 do
   for y=0,1 do
-   spr(128+x+y*16,x*8+40,y*8+41)
+   spr(128+x+y*16,x*8+40,y*8+33)
   end
  end
  pal()
 
+ rectfill(34,60,93,93,0)
+ print("[    ] ⬅️➡️",44,63,2)
+ print(
+  easymode and "easy" or "hard",
+  48,63,13
+ )
+ local y=73+(
+  easymode and 0 or 7
+ )
+ print("⬅️➡️⬆️⬇️ move",37,y,2)
+ y+=7
+ if easymode then
+  print("❎       undo",37,y,2)
+  y+=7
+ end
+ print("❎(hold) retry",37,y,2)
+
  rectfill(0,121,127,127,5)
- rectfill(34,72,93,87,0)
-
- print("eriban's",48,13,13)
- print(
-  "⬅️➡️⬆️⬇️ move",37,74,13
- )
- print(
-  "❎(hold) retry",37,81,13
- )
-
  print(
   "press ❎ to start",30,122,0
  ) 
@@ -1293,8 +1303,15 @@ function title:draw()
  )
 
  --draw boxes
- pal(colors[6-car.c],4)
- pal(lo_colors[6-car.c],1)
+ local c2=6-car.c
+ if easymode then
+  pal(colors[c2],lo_colors[c2])
+  pal(lo_colors[c2],0)
+ else
+  pal(colors[c2],4)
+  pal(lo_colors[c2],0)
+ end
+
  spr(183,self.boxr.x,113)
  spr(182,self.boxl.x,113)
  pal()
@@ -1430,11 +1447,11 @@ ffffffff6555555ff555555fffffffffffffffff6555555fffffffff6555555fffffffffffffffff
 00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 ffffffffffffffffffffffffffffffffffffffffffffffffffcccfffff888fff0000000000000000000000000000000000000000000000000000000000000000
 fffffffffffffffffffffffffffffffffffffffffffffffffc6cccfff8e888ff0000000000000000000000000000000000555555555555000000000000000000
-ffffffffffffffffffffffffffffffffffffffffffffffffc676cc1f8e7e880f0000000000000000000000000000000000555555555555000000000000000000
-ffffffffffffffffffffffffffffffffffffffffffffffffcc6ccc1f88e8880f0000000000000000000000000000000000000000000000000000000000000000
-ffffffffffffffffffffffffffffffffffffffffffffffffcccccc1f8888880f0000000000000000000000000000000000555550000055000000000000000000
-fffffffffffffffffffffffffffffffffffffffffffffffffcccc1fff88880ff0000000000000000000000000000000000000000000000000000000000000000
-ffffffffffffffffffffffffffffffffffffffffffffffffff111fffff000fff0000000000000000000000000000000000555555500055000000000000000000
+ffffffffffffffffffffffffffffffffffffffffffffffffc676cc1f8e7e882f0000000000000000000000000000000000555555555555000000000000000000
+ffffffffffffffffffffffffffffffffffffffffffffffffcc6ccc1f88e8882f0000000000000000000000000000000000000000000000000000000000000000
+ffffffffffffffffffffffffffffffffffffffffffffffffcccccc1f8888882f0000000000000000000000000000000000555550000055000000000000000000
+fffffffffffffffffffffffffffffffffffffffffffffffffcccc1fff88882ff0000000000000000000000000000000000000000000000000000000000000000
+ffffffffffffffffffffffffffffffffffffffffffffffffff111fffff222fff0000000000000000000000000000000000555555500055000000000000000000
 fffffff66ffffffffffffff66ffffffffffffff66fffffffffffffffffffffff0000000660000000000000066000000000000000000000000000000000000000
 ffffff7666ffffffffffff7666ffffffffffff7666ffffffffffffffffffffff0000007666000000000000766600000000555550000055000000000000000000
 fffff766666ffffffffff766666ffffffffff766666fffffcccccccf8888888f0000076666600000000007666660000000000000000000000000000000000000
