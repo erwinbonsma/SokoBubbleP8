@@ -710,8 +710,8 @@ end
 function player:_is_blocked(
  mov,game
 )
- local x1=mov.tgt_x
- local y1=mov.tgt_y
+ local x1=mov.dst_x
+ local y1=mov.dst_y
 
  local lvl=game.level
  local ws=lvl:wall_size(x1,y1)
@@ -752,28 +752,27 @@ end
 function player:_check_move(
  mov,game
 )
- local x,y
  if self.mov!=nil then
-  x=self.mov.tgt_x
-  y=self.mov.tgt_y
+  mov.src_x=self.mov.dst_x
+  mov.src_y=self.mov.dst_y
   mov.src_c=self.mov.dst_c
  else
-  x=self.sx\8
-  y=self.sy\8
+  mov.src_x=self.sx\8
+  mov.src_y=self.sy\8
   mov.src_c=self.bubble
  end
 
- local x1=x+mov.dx
- local y1=y+mov.dy
- mov.tgt_x=x1
- mov.tgt_y=y1
+ local x1=mov.src_x+mov.dx
+ local y1=mov.src_y+mov.dy
+ mov.dst_x=x1
+ mov.dst_y=y1
 
  mov.blocked=self:_is_blocked(
   mov,game
  )
  if mov.blocked!=0 then
-  mov.tgt_x=x
-  mov.tgt_y=y
+  mov.dst_x=mov.src_x
+  mov.dst_y=mov.src_y
  end
  mov.dst_c=game.level:bubble(
   x1,y1
@@ -790,32 +789,41 @@ function player:_start_queued_move(
  self.movq=nil
 
  mov.push_box=box_at(
-  mov.tgt_x,mov.tgt_y,game
+  mov.dst_x,mov.dst_y,game
  )
+ mov.ini_mov_cnt=game.mov_cnt
+ mov.ini_rot=self.rot
+ mov.ini_bubble=self.bubble
 
+ local mov_cnt_delta=1
  if mov.blocked!=0 then
   mov.anim=cowrap(
    "blocked_move",
    blocked_move_anim,
    mov,self
   )
+  mov_cnt_delta=0
  elseif mov.push_box!=nil then
   mov.anim=cowrap(
    "push_move",
    push_move_anim,
    mov,self
   )
-  game.mov_cnt=min(
-   game.mov_cnt+1,999
-  )
+  if easymode then
+   self.last_push_mov=mov
+  end
  else
   mov.anim=cowrap(
    "plain_move",
    plain_move_anim,
    mov,self
   )
-  game.mov_cnt+=1
  end
+
+ game.mov_cnt=min(
+  game.mov_cnt+mov_cnt_delta,
+  999
+ )
 
  self.mov=mov
 
@@ -829,6 +837,25 @@ function player:_start_queued_move(
    self.tgt_rot=mov.rot
   end
  end
+end
+
+function player:_undo(game)
+ local mov=self.last_push_mov
+ if mov==nil then
+  return false
+ end
+
+ self.sx=mov.src_x*8
+ self.sy=mov.src_y*8
+ self.rot=mov.ini_rot
+ self.bubble=mov.ini_bubble
+ mov.push_box.sx=mov.dst_x*8
+ mov.push_box.sy=mov.dst_y*8
+ game.mov_cnt=mov.ini_mov_cnt
+
+ self.last_push_mov=nil
+
+ return true
 end
 
 function player:update(game)
@@ -859,6 +886,15 @@ function player:update(game)
   end
   return
  else
+  if (
+   self.retry_cnt
+   and self.retry_cnt>0
+  ) then
+   if not self:_undo(game) then
+    sfx(1)
+   end
+  end
+
   self.retry_cnt=0
  end
 
