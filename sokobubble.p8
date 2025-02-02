@@ -1,7 +1,7 @@
 pico-8 cartridge // http://www.pico-8.com
 version 41
 __lua__
--- sokobubble v0.9
+-- sokobubble v0.9.1
 -- (c) 2025 eriban
 
 level_defs={{
