@@ -748,7 +748,7 @@ function player:_is_blocked(
  local lvl=game.level
  local ws=lvl:wall_size(x1,y1)
  if ws!=0 then
-  return ss\2+2-ws
+  return 2+(ss-ws)\2
  end
 
  local box=box_at(x1,y1,game)
@@ -774,7 +774,7 @@ function player:_is_blocked(
    or box_at(x2,y2,game)!=nil
   ) then
    --no room to push box
-   return 2
+   return 4
   end
  end
 
@@ -1030,15 +1030,9 @@ function level:is_wall(x,y)
 end
 
 function level:wall_size(x,y)
- local si=self:_sprite(x,y)
- local row=si\16
- if row==3 then
-  return 8
- elseif row==2 and si>36 then
-  return 6
- else
-  return 0
- end
+ return (
+  self:is_wall(x,y) and 14 or 0
+ )
 end
 
 function level:tgt_at(x,y)
