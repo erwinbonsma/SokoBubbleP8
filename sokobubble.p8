@@ -94,10 +94,12 @@ flag_box=2
 flag_tgt=3
 flag_bub=4
 
-colors={9,8,3,12}
-colors[0]=0
-hi_colors={10,14,11,6}
-lo_colors={4,2,1,1}
+bub_pals={
+ {[4]=4,[9]=9,[10]=10},--yellow
+ {[4]=2,[9]=8,[10]=14},--red
+ {[4]=1,[9]=3,[10]=11},--green
+ {[4]=1,[9]=12,[10]=6} --blue
+}
 
 track_anim_colors={4,2,13}
 
@@ -116,22 +118,20 @@ end
 
 function bubble_pal(idx)
  if idx==nil then
-  pal(10,10)
-  pal(9,9)
-  pal(4,4)
+  --reset bub_pal changes
+  pal(bub_pals[1])
  elseif idx==-1 then
   --any color (target only)
   pal(9,6)
  elseif idx<=4 then
   --normal color
-  pal(10,hi_colors[idx])
-  pal(9,colors[idx])
-  pal(4,lo_colors[idx])
+  pal(bub_pals[idx])
  elseif idx<=8 then
   --darkened
-  pal(10,colors[idx-4])
-  pal(9,lo_colors[idx-4])
-  pal(4,lo_colors[idx-4])
+  local p=bub_pals[idx-4]
+  pal(10,p[9])
+  pal(9,p[4])
+  pal(4,p[4])
  else
   --hidden
   pal(10,9)
@@ -963,12 +963,13 @@ function player:draw(game)
   self.retry_cnt
   and self.retry_cnt>0
  ) then
-  idx=self.retry_cnt\2%#colors
+  idx=1+(self.retry_cnt\2)%4
  end
  pal(1,0)
  if idx>0 then
-  pal(5,colors[idx])
-  pal(6,hi_colors[idx])
+  local p=bub_pals[idx]
+  pal(5,p[9])
+  pal(6,p[10])
  end
 
  spr(
@@ -1357,8 +1358,8 @@ function title:draw()
 
  --draw car
  local car=self.car
- pal(6,colors[car.c])
- pal(7,hi_colors[car.c])
+ pal(6,bub_pals[car.c][9])
+ pal(7,bub_pals[car.c][10])
  spr(8,car.x-4,106)
  spr(
   2+2*(flr(car.x%3)),
@@ -1368,13 +1369,11 @@ function title:draw()
 
  --draw boxes
  local c2=6-car.c
- if easymode then
-  pal(colors[c2],lo_colors[c2])
-  pal(lo_colors[c2],0)
- else
-  pal(colors[c2],4)
-  pal(lo_colors[c2],0)
- end
+ local p2=bub_pals[c2]
+ pal(p2[9],
+  easymode and p2[4] or 4
+ )
+ pal(p2[4],0)
 
  spr(12,self.boxr.x,113)
  spr(11,self.boxl.x,113)
