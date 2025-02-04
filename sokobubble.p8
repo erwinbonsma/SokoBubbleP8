@@ -101,6 +101,9 @@ bub_pals={
  {[4]=1,[9]=12,[10]=6} --blue
 }
 
+--sprite size
+ss=16
+
 track_anim_colors={4,2,13}
 
 easymode=true
@@ -568,8 +571,8 @@ box={}
 function box:new(x,y,c)
  local o=new_object(self)
 
- o.sx=x*8
- o.sy=y*8
+ o.sx=x*ss
+ o.sy=y*ss
  o.c=c
 
  return o
@@ -577,18 +580,19 @@ end
 
 function box:is_at(x,y)
  return (
-  self.sx==x*8 and self.sy==y*8
+  self.sx==x*ss
+  and self.sy==y*ss
  )
 end
 
 function box:on_tgt(level)
  if (
-  self.sx%8!=0 or self.sy%8!=0
+  self.sx%ss!=0 or self.sy%ss!=0
  ) then
   return false
  end
  local tgt=level:tgt_at(
-  self.sx\8,self.sy\8
+  self.sx\ss,self.sy\ss
  )
  return tgt==-1 or tgt==self.c
 end
@@ -604,8 +608,8 @@ player={}
 function player:new(x,y,bubble)
  local o=new_object(self)
 
- o.sx=x*8
- o.sy=y*8
+ o.sx=x*ss
+ o.sy=y*ss
  o.bubble=bubble
  o.sd=0
  o.dx=0
@@ -666,9 +670,9 @@ function plain_move_anim(args)
  local mov=args[1]
  local plyr=args[2]
 
- for i=1,8 do
+ for i=1,ss do
   plyr:_forward(mov)
-  if i!=8 then yield() end
+  if i!=ss then yield() end
  end
 end
 
@@ -678,20 +682,20 @@ function push_move_anim(args)
 
  local start=1
  if (
-  plyr.sx%8!=0 or plyr.sy%8!=0
+  plyr.sx%ss!=0 or plyr.sy%ss!=0
  ) then
   --continuing prev push move
-  start=3
+  start=5
  end
 
- for i=start,10 do
+ for i=start,ss+4 do
   plyr:_forward(mov)
-  if i==2 then
+  if i==4 then
    sfx(0)
-  elseif i>2 then
+  elseif i>4 then
    mov.push_box:_push(mov)
   end
-  if i!=10 then yield() end
+  if i!=ss+4 then yield() end
  end
 
  if (
@@ -704,7 +708,7 @@ function push_move_anim(args)
   yield() --allow anim swap
  else
   --retreat after placing box
-  for i=1,2 do
+  for i=1,4 do
    plyr:_backward(mov)
    yield()
   end
@@ -717,10 +721,11 @@ function player:_move(game)
  end
 
  if (
-  self.sx%8==0 and self.sy%8==0
+  self.sx%ss==0
+  and self.sy%ss==0
  ) then
   local bub=game.level:bubble(
-   self.sx\8,self.sy\8
+   self.sx\ss,self.sy\ss
   )
   if (
    bub!=nil and bub!=self.bubble
@@ -744,7 +749,7 @@ function player:_is_blocked(
  local lvl=game.level
  local ws=lvl:wall_size(x1,y1)
  if ws!=0 then
-  return 5-ws\2
+  return ss\2+2-ws
  end
 
  local box=box_at(x1,y1,game)
@@ -761,7 +766,7 @@ function player:_is_blocked(
  if box!=nil then
   if box.c!=mov.src_c then
    --cannot move this box color
-   return 2
+   return 4
   end
   local x2=x1+mov.dx
   local y2=y1+mov.dy
@@ -785,8 +790,8 @@ function player:_check_move(
   mov.src_y=self.mov.dst_y
   mov.src_c=self.mov.dst_c
  else
-  mov.src_x=self.sx\8
-  mov.src_y=self.sy\8
+  mov.src_x=self.sx\ss
+  mov.src_y=self.sy\ss
   mov.src_c=self.bubble
  end
 
@@ -873,12 +878,12 @@ function player:_undo(game)
   return false
  end
 
- self.sx=mov.src_x*8
- self.sy=mov.src_y*8
+ self.sx=mov.src_x*ss
+ self.sy=mov.src_y*ss
  self.rot=mov.ini_rot
  self.bubble=mov.ini_bubble
- mov.push_box.sx=mov.dst_x*8
- mov.push_box.sy=mov.dst_y*8
+ mov.push_box.sx=mov.dst_x*ss
+ mov.push_box.sy=mov.dst_y*ss
  game.mov_cnt=mov.ini_mov_cnt
 
  self.last_push_mov=nil
@@ -974,8 +979,8 @@ function player:draw(game)
 
  spr(
   si,
-  lvl.sx0+self.sx*2,
-  lvl.sy0+self.sy*2,
+  lvl.sx0+self.sx,
+  lvl.sy0+self.sy,
   2,2
  )
  pal()
@@ -1125,8 +1130,8 @@ function level:_draw_boxes(game)
   bubble_pal(c)
   spr(
    160,
-   self.sx0+box.sx*2,
-   self.sy0+box.sy*2,
+   self.sx0+box.sx,
+   self.sy0+box.sy,
    2,2
   )
  end
