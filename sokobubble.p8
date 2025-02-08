@@ -354,7 +354,7 @@ function animate_level_start(
    y=54
   },{
    s=level_defs[lvl_idx].name,
-   y=62,
+   y=63,
    big=true
   }
  })
@@ -378,7 +378,7 @@ function level_done_anim(args)
    big=true
   },{
    s="in "..state.mov_cnt.." moves",
-   y=68
+   y=70
   }
  })
  sfx(4)
