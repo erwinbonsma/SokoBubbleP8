@@ -31,11 +31,13 @@ level_defs={{
 },{
  name="espresso",
  mapdef={36,8,8,7},
- id=7
+ id=7,
+ score_dx=-16
 },{
  name="enclosed",
  mapdef={48,0,8,8},
- id=8
+ id=8,
+ score_dx=-8
 },{
  name="swap 2",
  mapdef={21,8,8,7},
@@ -43,7 +45,8 @@ level_defs={{
 },{
  name="coffee",
  mapdef={59,8,8,7},
- id=16
+ id=16,
+ score_dx=-8
 },{
  name="rgb",
  mapdef={56,0,8,8},
@@ -55,7 +58,8 @@ level_defs={{
 },{
  name="skull",
  mapdef={80,0,8,8},
- id=15
+ id=15,
+ score_dx=-24
 },{
  name="squares",
  mapdef={8,0,8,8},
@@ -63,11 +67,13 @@ level_defs={{
 },{
  name="center",
  mapdef={40,0,8,8},
- id=14
+ id=14,
+ score_dx=-16
 },{
  name="cross",
  mapdef={24,0,8,8},
- id=13
+ id=13,
+ score_dx=-8
 },{
 -- name="wip-rgb-2",
 -- mapdef={64,0,8,8}
@@ -79,7 +85,8 @@ level_defs={{
  mapdef={0,15,7,6},
  id=99,
  ini_bubble=1,
- no_floor=true
+ no_floor=true,
+ score_dx=99,
 },
 --{
 -- name="wip-rgb-2",
@@ -144,14 +151,32 @@ function bubble_pal(idx)
  end
 end
 
+function score_str(
+ lvl_idx,score
+)
+ local s=""
+
+ if score!=nil then
+  s..=score.."/"
+ end
+
+ local hi=stats:get_hi(lvl_idx)
+ if hi>0 then
+  s..=hi
+ else
+  s..="-"
+ end
+
+ return s
+end
+
 function draw_level_info(
- lvl_idx,y,score
+ lvl_idx,y
 )
  rectfill(0,y,127,y+6,5)
 
  if (
   lvl_idx==#level_defs
-  and score==nil
  ) then
   print("stats",1,y+1,0)
   return
@@ -163,17 +188,7 @@ function draw_level_info(
   1,y+1,0
  )
 
- local s="#="
- if score then
-  s..=score.."/"
- end
- local hi=stats:get_hi(lvl_idx)
- if hi>0 then
-  s..=hi
- else
-  s..="-"
- end
-
+ local s="#="..score_str(lvl_idx)
  print(s,128-#s*4,y+1,0)
 end
 
@@ -1058,6 +1073,14 @@ function level:new(lvl_index)
  o.nrows=lvl_def.mapdef[4]
  o.sx0=64-8*o.ncols
  o.sy0=64-8*o.nrows
+ o.score_x=(
+  61+8*o.ncols
+  +(lvl_def.score_dx or 0)
+ )
+ o.score_y=(
+  54+8*o.nrows
+  +(lvl_def.score_dy or 0)
+ )
  o.lvl_def=lvl_def
 
  o.id=level_id(lvl_index)
@@ -1190,6 +1213,18 @@ function level:_draw_walls()
  end
 end
 
+function level:_draw_score(game)
+ local s=score_str(
+  self.idx,game.mov_cnt
+ )
+ print(
+  s,
+  self.score_x-#s*4,
+  self.score_y,
+  1
+ )
+end
+
 function level:_draw_boxes(game)
  for box in all(game.boxes) do
   local c
@@ -1245,6 +1280,7 @@ function level:draw(game)
  end
  self:_draw_floor(game)
  self:_draw_walls()
+ self:_draw_score(game)
  self:_draw_boxes(game)
  self:_draw_bubbles()
  pal()
@@ -1503,12 +1539,12 @@ function game:update()
    self.anim=nil
   end
  elseif btnp(🅾️) then
-  --start_level(
-  -- lvl.idx%#level_defs+1
-  --)
-  self.anim=animate_level_done(
-   self.mov_cnt,new_hi
+  start_level(
+   lvl.idx%#level_defs+1
   )
+  --self.anim=animate_level_done(
+  -- self.mov_cnt,new_hi
+  --)
  else
   self.player:update(self)
 
