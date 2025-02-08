@@ -686,6 +686,7 @@ function player:new(x,y,bubble)
  o.dy=0
  o.rot=180
  o.tgt_rot=nil
+ o.undo_stack={}
 
  return o
 end
@@ -913,7 +914,7 @@ function player:_start_queued_move(
    mov,self
   )
   if easymode then
-   self.last_push_mov=mov
+   self:_allow_undo(mov)
   end
  else
   mov.anim=cowrap(
@@ -942,8 +943,25 @@ function player:_start_queued_move(
  end
 end
 
+function player:_allow_undo(mov)
+ if (
+  #self.undo_stack>0
+  and self.undo_stack[
+   #self.undo_stack
+  ].ini_mov_cnt!=(
+   mov.ini_mov_cnt-1
+  )
+ ) then
+  --only allow undo of single
+  --(multi-step) push
+  self.undo_stack={}
+ end
+
+ add(self.undo_stack,mov)
+end
+
 function player:_undo(game)
- local mov=self.last_push_mov
+ local mov=deli(self.undo_stack)
  if mov==nil then
   return false
  end
