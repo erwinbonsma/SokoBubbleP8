@@ -1455,13 +1455,13 @@ function title:draw()
  end
  pal()
 
- rectfill(34,60,93,93,0)
- print("[    ] ⬅️➡️",44,63,2)
+ rectfill(34,56,93,95,0)
+ print("[    ] ⬅️➡️",44,58,2)
  print(
   easymode and "easy" or "hard",
-  48,63,13
+  48,58,13
  )
- local y=73+(
+ local y=69+(
   easymode and 0 or 7
  )
  print("⬅️➡️⬆️⬇️ move",37,y,2)
@@ -1471,6 +1471,8 @@ function title:draw()
   y+=7
  end
  print("❎(hold) retry",37,y,2)
+ y+=6
+ print("/exit",73,y,2)
 
  rectfill(0,121,127,127,5)
  print(
