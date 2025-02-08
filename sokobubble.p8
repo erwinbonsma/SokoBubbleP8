@@ -287,51 +287,106 @@ function rect3d(
 end
 
 dialog={}
-function dialog:new(txt,y)
+function dialog:new(txt)
  local o=new_object(self)
 
  o.txt=txt
- o.y=y
+
+ o.hw=0
+ o.ymin=127
+ o.ymax=0
+
+ for t in all(txt) do
+  local s=t.big and 2 or 1
+  o.ymin=min(o.ymin,t.y-4)
+  o.ymax=max(o.ymax,t.y+s*5+4)
+  o.hw=max(o.hw,#t.s*2*s+2)
+ end
 
  return o
 end
 
 function dialog:draw()
- local hw=#self.txt*4+2
- local y=self.y
-
  rect3d(
-  64-hw,y,63+hw,y+17,5,6,0
+  63-self.hw,self.ymin,
+  64+self.hw,self.ymax,5,6,0
  )
- printbig(self.txt,67-hw,y+4,0)
+
+ for t in all(self.txt) do
+  local dx=t.dx or 0
+  if t.big then
+   printbig(
+    t.s,65-#t.s*4+dx,t.y,0
+   )
+  else
+   print(t.s,64-#t.s*2,t.y,0)
+  end
+ end
+end
+
+function level_start_anim()
+ --todo: add sfx
+ wait(120)
+end
+
+function animate_level_start(
+ lvl_idx
+)
+ local dialog=dialog:new({
+  {
+   s="level "..lvl_idx,
+   y=54
+  },{
+   s=level_defs[lvl_idx].name,
+   y=62,
+   big=true
+  }
+ })
+ local anim=cowrap(
+  "level_start",
+  level_start_anim
+ )
+ anim.draw=function()
+  dialog:draw()
+ end
+ return anim
 end
 
 function level_done_anim(args)
  local state=args[1]
  wait(30)
- state.dialog=dialog:new(
-  "solved!",58
- )
+ state.dialog=dialog:new({
+  {
+   s="solved!",
+   y=54,dx=1,
+   big=true
+  },{
+   s="in "..state.mov_cnt.." moves",
+   y=68
+  }
+ })
  sfx(4)
- wait(90)
+ wait(120)
 
  if state.new_hi then
   state.dialog=dialog:new(
-   "new hi!",58
+   {{s="new hi!",y=58,big=true}}
   )
   sfx(4)
   wait(90)
  end
- 
+
  start_level(_game.level.idx+1)
  yield() --allow anim swap
 end
 
 function animate_level_done(
- new_hi
+ mov_cnt,new_hi
 )
  local state={
-  dialog=nil,new_hi=new_hi
+  dialog=nil,
+  new_hi=new_hi,
+  mov_cnt=mov_cnt
  }
  local anim=cowrap(
   "level_done",
@@ -1001,7 +1056,7 @@ function level:new(lvl_index)
  o.ncols=lvl_def.mapdef[3]
  o.nrows=lvl_def.mapdef[4]
  o.sx0=64-8*o.ncols
- o.sy0=67-8*o.nrows
+ o.sy0=64-8*o.nrows
  o.lvl_def=lvl_def
 
  o.id=level_id(lvl_index)
@@ -1192,10 +1247,6 @@ function level:draw(game)
  self:_draw_boxes(game)
  self:_draw_bubbles()
  pal()
-
- draw_level_info(
-  self.idx,0,game.mov_cnt
- )
 end
 
 function level:_box_on_tgt_at(
@@ -1254,6 +1305,9 @@ end
 function start_level(idx)
  _game=game:new(idx)
  scene=_game
+ _game.anim=animate_level_start(
+  idx
+ )
 end
 
 title={}
@@ -1448,8 +1502,11 @@ function game:update()
    self.anim=nil
   end
  elseif btnp(🅾️) then
-  start_level(
-   lvl.idx%#level_defs+1
+  --start_level(
+  -- lvl.idx%#level_defs+1
+  --)
+  self.anim=animate_level_done(
+   self.mov_cnt,new_hi
   )
  else
   self.player:update(self)
@@ -1459,7 +1516,7 @@ function game:update()
     lvl.idx,self.mov_cnt
    )
    self.anim=animate_level_done(
-    new_hi
+    self.mov_cnt,new_hi
    )
   end
  end
