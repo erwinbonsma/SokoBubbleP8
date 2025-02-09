@@ -611,10 +611,7 @@ function levelmenu:draw()
    col==self.cx and row==self.cy
   )
 
-  rect3d(
-   x,y,x+17,y+13,
-   focus and 8 or 1,13,2
-  )
+  rect3d(x,y,x+17,y+13,1,13,2)
 
   local s=""..i
   local c=0
@@ -632,6 +629,7 @@ function levelmenu:draw()
   end
   if focus then
    draw_level_info(i,120)
+   rect(x,y,x+17,y+13,8)
   end
  end
 end
