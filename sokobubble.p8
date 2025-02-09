@@ -1,7 +1,7 @@
 pico-8 cartridge // http://www.pico-8.com
 version 41
 __lua__
--- sokobubble v0.9.1
+-- sokobubble v1.0 beta
 -- (c) 2025 eriban
 
 level_defs={{
@@ -91,9 +91,6 @@ level_defs={{
  mapdef={64,0,8,8},
  id=19,
 },{
--- name="wip",
--- mapdef={32,0,8,8}
---},
  name="the end",
  mapdef={0,15,7,6},
  id=99,
@@ -102,7 +99,7 @@ level_defs={{
  score_dx=99,
 },
 --{
--- name="wip-rgb-2",
+-- name="wip",
 -- mapdef={64,0,8,8}
 --}
 }
@@ -1641,9 +1638,9 @@ function game:update()
    self.anim=nil
   end
  elseif btnp(🅾️) then
-  start_level(
-   lvl.idx%#level_defs+1
-  )
+  --start_level(
+  -- lvl.idx%#level_defs+1
+  --)
   --self.anim=animate_level_done(
   -- self.mov_cnt,new_hi
   --)
