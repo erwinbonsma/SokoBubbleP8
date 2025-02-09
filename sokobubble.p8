@@ -1559,7 +1559,8 @@ function title:draw()
  print("◆       retry",37,y,13)
  print("❎(hold)",37,y,0)
  y+=6
- print("/exit",73,y,13)
+ print(" exit",73,y,13)
+ print("/",73,y,0)
 
  rectfill(0,121,127,127,5)
  print(
