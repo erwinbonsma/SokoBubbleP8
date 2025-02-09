@@ -1630,9 +1630,9 @@ function game:update()
    self.anim=nil
   end
  elseif btnp(🅾️) then
-  start_level(
-   lvl.idx%#level_defs+1
-  )
+  --start_level(
+  -- lvl.idx%#level_defs+1
+  --)
   --self.anim=animate_level_done(
   -- self.mov_cnt,new_hi
   --)
