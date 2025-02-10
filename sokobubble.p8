@@ -310,6 +310,14 @@ function wait(steps)
  end
 end
 
+function shallow_copy(t)
+ local t2={}
+ for k,v in pairs(t) do
+  t2[k]=v
+ end
+ return t2
+end
+
 function printbig(s,x0,y0,c)
  print(s,x0,y0,c)
  for y=4,0,-1 do
@@ -865,7 +873,10 @@ function push_move_anim(args)
   and plyr.movq.rot==plyr.rot
  ) then
   --continue into next move
-  plyr:_start_queued_move(_game)
+  plyr:_start_move(
+   plyr.movq,_game
+  )
+  plyr.movq=nil
   yield() --allow anim swap
  else
   --retreat after placing box
@@ -975,13 +986,9 @@ function player:_check_move(
  return mov
 end
 
-function player:_start_queued_move(
- game
+function player:_start_move(
+ mov,game
 )
- assert(self.movq!=nil)
- local mov=self.movq
- self.movq=nil
-
  mov.push_box=box_at(
   mov.dst_x,mov.dst_y,game
  )
@@ -1055,22 +1062,43 @@ function player:_undo(game)
  return true
 end
 
+_btn_mov_lookup={
+ [➡️]={rot=90,dx=1,dy=0},
+ [⬅️]={rot=270,dx=-1,dy=0},
+ [⬆️]={rot=0,dx=0,dy=-1},
+ [⬇️]={rot=180,dx=0,dy=1}
+}
+
 function player:update(game)
  --allow player to queue a move
- local req_mov=nil
- if btnp(➡️) then
-  req_mov={rot=90,dx=1,dy=0}
- elseif btnp(⬅️) then
-  req_mov={rot=270,dx=-1,dy=0}
- elseif btnp(⬆️) then
-  req_mov={rot=0,dx=0,dy=-1}
- elseif btnp(⬇️) then
-  req_mov={rot=180,dx=0,dy=1}
- end
- if req_mov!=nil then
-  self.movq=self:_check_move(
-   req_mov,game
+ local softmovq=false
+ for b,mov in pairs(
+  _btn_mov_lookup
+ ) do
+  if (
+   btnp(b) or (btn(b) and (
+    self.movq==nil
+    or self.movq_expiry<=2
+   ))
   )
+  then
+   --queue move
+   self.movq=self:_check_move(
+    shallow_copy(mov),game
+   )
+
+   --button hold only queues
+   --a short-lived move request
+   --to prevent that the player
+   --moves a unit too far. it
+   --still needs to persist an
+   --entire update cycle so
+   --that it is visible to an
+   --ongoing push animation
+   self.movq_expiry=(
+    btnp(b) and 99 or 2
+   )
+  end
  end
 
  --handle level retry
@@ -1097,11 +1125,20 @@ function player:update(game)
   self.retry_cnt=0
  end
 
- if (
-  self.movq!=nil
-  and self.mov==nil
- ) then
-  self:_start_queued_move(game)
+ if self.movq then
+  if self.mov==nil then
+   self:_start_move(
+    self.movq,game
+   )
+   self.movq=nil
+  else
+   self.movq_expiry-=1
+   if self.movq_expiry<=0 then
+    --remove short-lived move
+    --request
+    self.movq=nil
+   end
+  end
  end
 
  if self.tgt_rot then
@@ -1429,6 +1466,10 @@ function _init()
  _levelmenu=levelmenu:new()
  _stats=stats:new()
  _statsview=statsview:new()
+
+ --disable btnp auto-repeat
+ --to use custom hold logic
+ poke(0x5f5c,255)
 
  scene=_title
  --start_level(19)
