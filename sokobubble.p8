@@ -79,8 +79,7 @@ level_defs={{
 },{
  name="cross",
  mapdef={24,0,8,8},
- id=13,
- score_dx=-8
+ id=13
 },{
  name="windmill",
  mapdef={96,0,8,8},
@@ -780,8 +779,6 @@ function player:new(x,y,bubble)
  o.sy=y*ss
  o.bubble=bubble
  o.sd=0
- o.dx=0
- o.dy=0
  o.rot=180
  o.tgt_rot=nil
  o.undo_stack=undo_stack:new(8)
@@ -992,7 +989,6 @@ function player:_start_move(
  mov.push_box=box_at(
   mov.dst_x,mov.dst_y,game
  )
- mov.ini_mov_cnt=game.mov_cnt
  mov.ini_rot=self.rot
  mov.ini_bubble=self.bubble
 
@@ -1053,7 +1049,7 @@ function player:_undo(game)
  self.sy=mov.src_y*ss
  self.rot=mov.ini_rot
  self.bubble=mov.ini_bubble
- game.mov_cnt=mov.ini_mov_cnt
+ game.mov_cnt-=1
  if mov.push_box then
   mov.push_box.sx=mov.dst_x*ss
   mov.push_box.sy=mov.dst_y*ss
@@ -1071,7 +1067,6 @@ _btn_mov_lookup={
 
 function player:update(game)
  --allow player to queue a move
- local softmovq=false
  for b,mov in pairs(
   _btn_mov_lookup
  ) do
