@@ -928,7 +928,7 @@ function player:_is_blocked(
   and self.mov.rot==mov.rot
  ) then
   --pushed box is not (always)
-  --bound by box_at
+  --found by box_at
   box=self.mov.push_box
  end
 
@@ -948,6 +948,7 @@ function player:_is_blocked(
   end
  end
 
+ mov.push_box=box
  return 0
 end
 
@@ -964,10 +965,8 @@ function player:_check_move(
   mov.src_c=self.bubble
  end
 
- local x1=mov.src_x+mov.dx
- local y1=mov.src_y+mov.dy
- mov.dst_x=x1
- mov.dst_y=y1
+ mov.dst_x=mov.src_x+mov.dx
+ mov.dst_y=mov.src_y+mov.dy
 
  mov.blocked=self:_is_blocked(
   mov,game
@@ -977,7 +976,7 @@ function player:_check_move(
   mov.dst_y=mov.src_y
  end
  mov.dst_c=game.level:bubble(
-  x1,y1
+  mov.dst_x,mov.dst_y
  ) or mov.src_c
 
  return mov
@@ -986,20 +985,15 @@ end
 function player:_start_move(
  mov,game
 )
- mov.push_box=box_at(
-  mov.dst_x,mov.dst_y,game
- )
  mov.ini_rot=self.rot
  mov.ini_bubble=self.bubble
 
- local mov_cnt_delta=1
  if mov.blocked!=0 then
   mov.anim=cowrap(
    "blocked_move",
    blocked_move_anim,
    mov,self
   )
-  mov_cnt_delta=0
  elseif mov.push_box!=nil then
   mov.anim=cowrap(
    "push_move",
@@ -1014,16 +1008,14 @@ function player:_start_move(
   )
  end
 
- if (
-  easymode and mov.blocked==0
- ) then
-  self.undo_stack:push(mov)
+ if mov.blocked==0 then
+  game.mov_cnt=min(
+   game.mov_cnt+1,999
+  )
+  if easymode then
+   self.undo_stack:push(mov)
+  end
  end
-
- game.mov_cnt=min(
-  game.mov_cnt+mov_cnt_delta,
-  999
- )
 
  self.mov=mov
 
