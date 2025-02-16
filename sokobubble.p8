@@ -370,59 +370,44 @@ function dialog:draw()
 end
 
 function level_start_anim()
- wait(30)
+ wait(10)
  sfx(6)
- wait(90)
 end
 
 function animate_level_start(
  lvl_idx
 )
- local dialog=dialog:new({
-  {
-   s="level "..lvl_idx,
-   y=54
-  },{
-   s=level_defs[lvl_idx].name,
-   y=63,
-   big=true
-  }
- })
  local anim=cowrap(
   "level_start",
   level_start_anim
  )
- anim.draw=function()
-  dialog:draw()
- end
+ anim.draw=do_nothing
  return anim
 end
 
 function level_done_anim(args)
  local state=args[1]
+ local lvl=_game.level
+
  wait(30)
- state.dialog=dialog:new({
-  {
-   s="solved!",
-   y=54,dx=1,
-   big=true
-  },{
-   s="in "..state.mov_cnt.." moves",
-   y=70
-  }
- })
  sfx(4)
  wait(120)
 
  if state.new_hi then
-  state.dialog=dialog:new(
-   {{s="new hi!",y=58,big=true}}
-  )
   sfx(8)
-  wait(90)
+  for i=1,90 do
+   lvl.force_show_score=(
+    (i\30)%2
+   )==0
+   yield()
+  end
  end
 
- start_level(_game.level.idx+1)
+ _stats:mark_done(
+  lvl.idx,_game.mov_cnt
+ )
+
+ start_level(lvl.idx+1)
  yield() --allow anim swap
 end
 
@@ -511,11 +496,19 @@ function stats:_update_total()
  end
 end
 
-function stats:mark_done(
+function stats:is_hi(
  lvl_idx,num_moves
 )
  local hi=self:get_hi(lvl_idx)
- if hi==0 or num_moves<hi then
+ return hi==0 or num_moves<hi
+end
+
+function stats:mark_done(
+ lvl_idx,num_moves
+)
+ if self:is_hi(
+  lvl_idx,num_moves
+ ) then
   dset(
    1+level_id(lvl_idx),
    num_moves
@@ -528,8 +521,6 @@ function stats:mark_done(
   ) then
    self.max_lvl_idx+=1
   end
-
-  return true
  end
 end
 
@@ -1333,7 +1324,10 @@ function level:_draw_score(game)
  local hi=stats:get_hi(self.idx)
  pal(6,13)
  pal(5,1)
- if hi and hi>=s then
+ if (
+  hi and hi>=s
+  and not self.force_show_score
+ ) then
   pal(7,12)
   s=hi-s
  else
@@ -1668,11 +1662,11 @@ function game:update()
   self.player:update(self)
 
   if lvl:is_done(self) then
-   local new_hi=_stats:mark_done(
-    lvl.idx,self.mov_cnt
-   )
    self.anim=animate_level_done(
-    self.mov_cnt,new_hi
+    self.mov_cnt,
+    _stats:is_hi(
+     lvl.idx,self.mov_cnt
+    )
    )
   end
  end
