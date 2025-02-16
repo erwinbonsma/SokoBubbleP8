@@ -1137,11 +1137,10 @@ end
 
 function player:draw(game)
  local lvl=game.level
- local subrot=self.rot%90
- local d=(subrot+15)\30
+ local d=(self.rot%90+15)\30
  local o=(self.rot%180)\90
  local si
- if subrot==0 or d%3==0 then
+ if d%3==0 then
   si=164+2*((o+d\3)%2)
   for i=1,3 do
    pal(
