@@ -1077,9 +1077,9 @@ function player:update(game)
    self.retry_cnt+=1
    if self.retry_cnt>30 then
     game.anim=animate_retry()
+    return
    end
   end
-  return
  else
   if (
    self.retry_cnt
