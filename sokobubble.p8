@@ -481,108 +481,129 @@ function stats:get_hi(lvl_idx)
  return dget(1+level_id(lvl_idx))
 end
 
+function draw_lvl_name(
+ lvl,y
+)
+ local s=lvl.lvl_def.name
+ local xmin=64-#s*2
+ local xmax=62+#s*2
+ rectfill(
+  xmin-2,y+1,xmax+2,y+7,13
+ )
+ line(xmin-1,y,xmax+1,y)
+ line(xmin-1,y+8,xmax+1,y+8)
+ print(s,xmin,y+2,0)
+end
+
+function level_switch_anim(args)
+ local state=args[1]
+
+ sfx(1)
+
+ for i=3,-8,-1 do
+  state.name_y=i
+  yield()
+ end
+ state.name_y=nil
+
+ for i=0,128,4 do
+  state.offset=i
+  yield()
+ end
+
+ for i=-7,3 do
+  state.name_y=i
+  yield()
+ end
+end
+
+function animate_lvl_switch(
+ lvl_l,lvl_r,l2r
+)
+ local state={offset=0}
+ local anim=cowrap(
+  "level_switch",
+  level_switch_anim,
+  state
+ )
+ anim.draw=function()
+  local offset=(
+   l2r and state.offset
+   or 128-state.offset
+  )
+
+  lvl_l:draw(-offset)
+  lvl_r:draw(128-offset)
+
+  if state.name_y then
+   local lvl=(
+    offset<64 and lvl_l or lvl_r
+   )
+   draw_lvl_name(
+    lvl,state.name_y
+   )
+  end
+ end
+
+ return anim
+end
+
 levelmenu={}
 function levelmenu:new()
  local o=new_object(self)
 
- o.ncols=4
- o.nrows=(
-  #level_defs+o.ncols-1
- )\o.ncols
- o.cx=0
- o.cy=0
+ o.lvl=level:new(1)
 
  return o
 end
 
-function levelmenu:_lvl_idx(x,y)
- local idx=1+y*4+x
- if idx>#level_defs then
-  idx=nil
- end
- return idx
-end
-
 function levelmenu:update()
- local cx=self.cx
- local cy=self.cy
-
- if btnp(➡️) then
-  cx=(cx+1)%self.ncols
- elseif btnp(⬅️) then
-  cx=(cx+self.ncols-1)%self.ncols
- elseif btnp(⬆️) then
-  cy=(cy+self.nrows-1)%self.nrows
- elseif btnp(⬇️) then
-  cy=(cy+1)%self.nrows
- else
-  if btnp(❎) then
-   local lvl_idx=self:_lvl_idx(
-    cx,cy
-   )
-   if lvl_idx<#level_defs then
-    start_level(lvl_idx)
-   else
-    scene=_statsview
-   end
+ if self.anim then
+  if coinvoke(self.anim) then
+   self.anim=nil
   end
   return
  end
 
- local lvl_idx=self:_lvl_idx(
-  cx,cy
- )
- if lvl_idx==nil then
-  sfx(1)
+ if btnp(❎) then
+  start_level(self.lvl.idx)
   return
  end
- if (
-  lvl_idx<=_stats.max_lvl_idx
- ) then
-  sfx(0)
-  self.cx=cx
-  self.cy=cy
- else
-  sfx(1)
-  return
+
+ local max_idx=_stats.max_lvl_idx
+ if btnp(➡️) then
+  local nxt_lvl=level:new(
+   1+(self.lvl.idx)%max_idx
+  )
+  self.anim=animate_lvl_switch(
+   self.lvl,nxt_lvl,true
+  )
+  self.lvl=nxt_lvl
+ elseif btnp(⬅️) then
+  local nxt_lvl=level:new(
+   1+(
+    self.lvl.idx+max_idx-2
+   )%max_idx
+  )
+  self.anim=animate_lvl_switch(
+   nxt_lvl,self.lvl,false
+  )
+  self.lvl=nxt_lvl
  end
+ self.lvl.hide_score=true
 end
 
 function levelmenu:draw()
  cls()
 
- spr(134,32,0,8,2)
+ if self.anim then
+  self.anim:draw()
+ else
+  self.lvl:draw()
+  draw_lvl_name(self.lvl,4)
 
- for i=1,#level_defs do
-  local row=(i-1)\self.ncols
-  local col=(i-1)%self.ncols
-
-  local x=col*24+16
-  local y=row*20+20
-  local focus=(
-   col==self.cx and row==self.cy
-  )
-
-  rect3d(x,y,x+17,y+13,1,13,2)
-
-  local s=""..i
-  local c=0
-  if i==_stats.max_lvl_idx then
-   c=2
-  elseif i<_stats.max_lvl_idx then
-   c=12
-  end
-  if i<#level_defs then
-   printbig(s,x+10-#s*4,y+2,c)
-  else
-   pal(5,c)
-   spr(142,x+1,y+1,2,2)
-   pal()
-  end
-  if focus then
-   draw_level_info(i,120)
-   rect(x,y,x+17,y+13,8)
-  end
+  spr(142,4,56,1,2)
+  spr(143,115,56,1,2)
  end
 end
 
@@ -1066,7 +1087,7 @@ function player:update(lvl)
  end
 end
 
-function player:draw(lvl)
+function player:draw(x0,y0)
  local d=(self.rot%90+15)\30
  local o=(self.rot%180)\90
  local si
@@ -1097,10 +1118,7 @@ function player:draw(lvl)
  end
 
  spr(
-  si,
-  lvl.sx0+self.sx,
-  lvl.sy0+self.sy,
-  2,2
+  si,x0+self.sx,y0+self.sy,2,2
  )
  pal()
 end
@@ -1211,11 +1229,15 @@ function level:add_objects()
  return s
 end
 
-function level:_draw_floor()
+function level:_draw_floor(
+ x0,y0
+)
+ local xmax=x0+self.ncols*16-1
+ local ymax=y0+self.nrows*16-1
  for x=0,self.ncols-1 do
+  local sx=x0+x*16
   for y=0,self.nrows-1 do
-   local sx=self.sx0+x*16
-   local sy=self.sy0+y*16
+   local sy=y0+y*16
 
    local si=self:_sprite(x,y)
    if si==34 then
@@ -1223,7 +1245,10 @@ function level:_draw_floor()
     --use padding to also fix
     --nearby beveled corners
     rectfill(
-     sx-8,sy-8,sx+24,sy+24,0
+     max(x0,sx-8),
+     max(y0,sy-8),
+     min(xmax,sx+24),
+     min(ymax,sy+24),0
     )
    elseif fget(si,flag_tgt) then
     local c=tgt_color(si)
@@ -1244,11 +1269,13 @@ function level:_draw_floor()
  end
 end
 
-function level:_draw_walls()
+function level:_draw_walls(
+ x0,y0
+)
  for x=0,self.ncols-1 do
+  local sx=x0+x*ss
   for y=0,self.nrows-1 do
-   local sx=self.sx0+x*ss
-   local sy=self.sy0+y*ss
+   local sy=y0+y*ss
 
    local si=self:_sprite(x,y)
    if fget(si,flag_wall) then
@@ -1270,13 +1297,15 @@ function level:_draw_walls()
  end
 end
 
-function level:_draw_score()
+function level:_draw_score(
+ x_offset
+)
  if self.lvl_def.hide_score then
   return
  end
 
  local s=self.mov_cnt
- local x=67
+ local x=67+x_offset
  local y=53+8*self.nrows
 
  local hi=stats:get_hi(self.idx)
@@ -1303,7 +1332,9 @@ function level:_draw_score()
  pal()
 end
 
-function level:_draw_boxes()
+function level:_draw_boxes(
+ x0,y0
+)
  for box in all(self.boxes) do
   local c
   if (
@@ -1318,53 +1349,50 @@ function level:_draw_boxes()
   end
   bubble_pal(c)
   spr(
-   160,
-   self.sx0+box.sx,
-   self.sy0+box.sy,
-   2,2
+   160,x0+box.sx,y0+box.sy,2,2
   )
  end
  bubble_pal()
 end
 
-function level:draw_bubbles()
+function level:_draw_bubbles(
+ x0,y0
+)
  for x=0,self.ncols-1 do
   for y=0,self.nrows-1 do
    local si=self:_sprite(x,y)
    if fget(si,flag_bub) then
     bubble_pal(bub_color(si))
-    spr(
-     12,
-     self.sx0+x*ss+4,
-     self.sy0+y*ss+4
-    )
+    spr(12,x0+x*ss+4,y0+y*ss+4)
    end
   end
  end
 end
 
-function level:draw()
+function level:draw(x_offset)
+ x_offset=x_offset or 0
+ local x0=self.sx0+x_offset
+ local y0=self.sy0
  pal(15,1)
  if (
   not self.lvl_def.no_floor
  ) then
   rectfill(
-   self.sx0+8,
-   self.sy0+8,
-   self.sx0+self.ncols*ss-8,
-   self.sy0+self.nrows*ss-8,
+   x0+8,y0+8,
+   x0+self.ncols*ss-8,
+   y0+self.nrows*ss-8,
    5
   )
  end
- self:_draw_floor()
- self:_draw_walls()
- self:_draw_score()
- self:_draw_boxes()
- self.player:draw(self)
- self:draw_bubbles()
+ self:_draw_floor(x0,y0)
+ self:_draw_walls(x0,y0)
+ if not self.hide_score then
+  self:_draw_score(x_offset)
+ end
+ self:_draw_boxes(x0,y0)
+ self.player:draw(x0,y0)
+ self:_draw_bubbles(x0,y0)
  pal()
-
- spr(134,34,0,8,2)
 end
 
 function level:is_done()
@@ -1590,6 +1618,7 @@ function game:draw()
  cls(0)
 
  self.level:draw()
+ spr(134,34,0,8,2)
 
  if self.anim!=nil then
   self.anim.draw()
@@ -1615,13 +1644,13 @@ function game:update()
 end
 __gfx__
 0000000000000000ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffcccfffff888fff0aaaaaa000999900000000000000000000000000
-0000000000000000f55555555555555ff55555555555555ff55555555555555ffffffffffc6cccfff8e888ffa999999409aa9990007777000077770000000000
-0070070088778877555555555555555555555555555555555555555555555555ffffffffc676cc1f8e7e882fa99999949a7aa994076666500766665000000000
-0007700088778877554544544544545555445445445445555554454454454455ffffffffcc6ccc1f88e8882fa99999949aaaa994076006500760065000000000
-0007700000000000546665555556664555666555555666455466655555566655ffffffffcccccc1f8888882fa999999499aa9994076006500000660000000000
-0070070000000000556065555556065ff46065555556064ff46065555556064ffff66ffffcccc1fff88882ffa999999499999944076006500760065000000000
-0000000000000000f4666ffffff6664ff4666ffffff666ffff666ffffff6664fff7666ffff111fffff222fffa999999409999440076666500766665000000000
-0000000000000000ff4f44f44f44f4fffff44f44f44f44ffff44f44f44f44ffff776666fffffffffffffffff0444444000444400005555000055550000000000
+0000000000000000f55555555555555ff55555555555555ff55555555555555ffffffffffc6cccfff8e888ffa999999409aa9990000000000000000000000000
+0070070088778877555555555555555555555555555555555555555555555555ffffffffc676cc1f8e7e882fa99999949a7aa994000000000000000000000000
+0007700088778877554544544544545555445445445445555554454454454455ffffffffcc6ccc1f88e8882fa99999949aaaa994000000000000000000000000
+0007700000000000546665555556664555666555555666455466655555566655ffffffffcccccc1f8888882fa999999499aa9994000000000000000000000000
+0070070000000000556065555556065ff46065555556064ff46065555556064ffff66ffffcccc1fff88882ffa999999499999944000000000000000000000000
+0000000000000000f4666ffffff6664ff4666ffffff666ffff666ffffff6664fff7666ffff111fffff222fffa999999409999440000000000000000000000000
+0000000000000000ff4f44f44f44f4fffff44f44f44f44ffff44f44f44f44ffff776666fffffffffffffffff0444444000444400000000000000000000000000
 ffffff6666ffffff5555555f0000000000000000000000000000000006555555555555f006555555555555f00077770000077000007777000077770000770770
 fffff655555fffff5555555f0000000000066666666660000000000006555555555555f666555555555555f00766666000766500076666600766666000765665
 ffff65555555ffff555555f000000000066555555555555000000000065555555555555555555555555555f00765566500666500005556650765566507655665
@@ -1679,19 +1708,19 @@ ffffffff6555555ff555555f0ffffffffffffff06555555fffffffff6555555ffffffff00ffffff0
 00111100001111000011110000111100001111000cc00cc000000000066006600990099008800880033003300cc00cc008111180031111300000000000000000
 00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 000ee00000000000000ee000000ee000000ee000000000000dddddd00dddddd00dd10dd10dddddd0000000000000000000000000000000000000000000000000
-00e882000000000000e8820000e8820000e8820000000000dcccccc1dcccccc1dcc1dcc1dcccccc1000000000000000000000000000000000055555555555500
-0e888820000000000e8888200e8888200e88882000000000dcccccc1dcccccc1dcc1dcc1dcccccc10ee00000000ee000ee000ee0000000000055555555555500
-0e888820000000000e8888200e8888200e88882000000000dccc1110dcccccc1dcc1ccc1dcccccc1e880000000e8800e8800e882000000000000000000000000
-0e8888200000000eee8888200e8888200e88882000eeee00dccc1dd0dcc11cc1dcccccc1dcc11cc1e88000ee0ee8800e8800e8820ee000000055555000005500
-0e888822200ee0e8822888222e8888222e8888200e888820dcccccc1dcc1dcc1dccccc10dcc1dcc1e88ee08808828eee88eee882e88800000000000000000000
-0e88828882e88288882882888288828882888820e8888882dcccccc1dcc1dcc1dccccc10dcc1dcc1e88888282882888828888282882820000055555550005500
-0e8888888828882888288888882888888828882e888288820111ccc1dcc1dcc1dcccccc1dcc1dcc1e88888282882888828888282888820000000000000000000
-0e8888888828882888288888882888888828882e882e88820dddccc1dcccccc1dcc1ccc1dcccccc1e88288282882828828288282882200000055555000005500
-0e8882288828882888288228882882288828882288888820dcccccc1dcccccc1dcc1dcc1dcccccc1e88888288882888828888288288820000000000000000000
-0e8882e888288828882882e8882882e88828828828822282dcccccc1dcccccc1dcc1dcc1dcccccc1088882888828888288882888288820000055555500005500
-0e888888828888888828888882888888828888882888888201111110011111100111011101111110002220022200222002220022022200000000000000000000
-0e888888828888888288888882888888828888882888882000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00888882200888822088888220888882208888828888220000000000000000000000000000000000000000000000000000000000000000000000000000000000
+00e882000000000000e8820000e8820000e8820000000000dcccccc1dcccccc1dcc1dcc1dcccccc100000000000000000000000000000000000000c00c000000
+0e888820000000000e8888200e8888200e88882000000000dcccccc1dcccccc1dcc1dcc1dcccccc10ee00000000ee000ee000ee00000000000000cdccdc00000
+0e888820000000000e8888200e8888200e88882000000000dccc1110dcccccc1dcc1ccc1dcccccc1e880000000e8800e8800e882000000000000cddccddc0000
+0e8888200000000eee8888200e8888200e88882000eeee00dccc1dd0dcc11cc1dcccccc1dcc11cc1e88000ee0ee8800e8800e8820ee00000000cdddccdddc000
+0e888822200ee0e8822888222e8888222e8888200e888820dcccccc1dcc1dcc1dccccc10dcc1dcc1e88ee08808828eee88eee882e888000000cddddccddddc00
+0e88828882e88288882882888288828882888820e8888882dcccccc1dcc1dcc1dccccc10dcc1dcc1e88888282882888828888282882820000cdddddccdddddc0
+0e8888888828882888288888882888888828882e888288820111ccc1dcc1dcc1dcccccc1dcc1dcc1e8888828288288882888828288882000cddddddccddddddc
+0e8888888828882888288888882888888828882e882e88820dddccc1dcccccc1dcc1ccc1dcccccc1e88288282882828828288282882200000cdddddccdddddc0
+0e8882288828882888288228882882288828882288888820dcccccc1dcccccc1dcc1dcc1dcccccc1e888882888828888288882882888200000cddddccddddc00
+0e8882e888288828882882e8882882e88828828828822282dcccccc1dcccccc1dcc1dcc1dcccccc108888288882888828888288828882000000cdddccdddc000
+0e888888828888888828888882888888828888882888888201111110011111100111011101111110002220022200222002220022022200000000cddccddc0000
+0e8888888288888882888888828888888288888828888820000000000000000000000000000000000000000000000000000000000000000000000cdccdc00000
+0088888220088882208888822088888220888882888822000000000000000000000000000000000000000000000000000000000000000000000000c00c000000
 00022220000022200002222000022220000222202222000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
