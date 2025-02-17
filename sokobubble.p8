@@ -247,14 +247,6 @@ function bub_color(si)
  end
 end
 
-function box_at(x,y,game)
- for box in all(game.boxes) do
-  if box:is_at(x,y) then
-   return box
-  end
- end
-end
-
 function new_object(class)
  local obj=setmetatable(
   {},class
@@ -386,14 +378,15 @@ function animate_level_start(
 end
 
 function level_done_anim(args)
- local state=args[1]
- local lvl=_game.level
+ local lvl=args[1]
 
  wait(30)
  sfx(4)
  wait(120)
 
- if state.new_hi then
+ if stats:is_hi(
+  lvl.idx,lvl.mov_cnt
+ ) then
   sfx(8)
   for i=1,90 do
    lvl.force_show_score=(
@@ -404,7 +397,7 @@ function level_done_anim(args)
  end
 
  _stats:mark_done(
-  lvl.idx,_game.mov_cnt
+  lvl.idx,lvl.mov_cnt
  )
 
  start_level(lvl.idx+1)
@@ -412,45 +405,39 @@ function level_done_anim(args)
 end
 
 function animate_level_done(
- mov_cnt,new_hi
+ lvl
 )
- local state={
-  dialog=nil,
-  new_hi=new_hi,
-  mov_cnt=mov_cnt
- }
  local anim=cowrap(
   "level_done",
   level_done_anim,
-  state
- )
- anim.draw=function()
-  if state.dialog then
-   state.dialog:draw()
-  end
- end
- return anim
-end
-
-function retry_anim()
- sfx(2)
- wait(30)
- if _game.mov_cnt==0 then
-  --start completely afresh
-  scene=_title
- else
-  start_level(_game.level.idx)
- end
- yield() --allow anim swap
-end
-
-function animate_retry()
- local anim=cowrap(
-  "retry",retry_anim
+  lvl
  )
  anim.draw=do_nothing
  return anim
 end
+
+function retry_anim(args)
+ local lvl=args[1]
+
+ sfx(2)
+ wait(30)
+ if lvl.mov_cnt==0 then
+  --start completely afresh
+  scene=_title
+ else
+  start_level(lvl.idx)
+ end
+ yield() --allow anim swap
+end
+
+function animate_retry(lvl)
+ local anim=cowrap(
+  "retry",retry_anim,lvl
+ )
+ anim.draw=do_nothing
+ return anim
+end
+
 -->8
 stats={}
 vmajor=0
@@ -828,6 +815,7 @@ end
 function push_move_anim(args)
  local mov=args[1]
  local plyr=args[2]
+ local lvl=args[3]
 
  local start=1
  if (
@@ -854,7 +842,7 @@ function push_move_anim(args)
  ) then
   --continue into next move
   plyr:_start_move(
-   plyr.movq,_game
+   plyr.movq,lvl
   )
   plyr.movq=nil
   yield() --allow anim swap
@@ -867,7 +855,7 @@ function push_move_anim(args)
  end
 end
 
-function player:_move(game)
+function player:_move(lvl)
  if coinvoke(self.mov.anim) then
   self.mov=nil
  end
@@ -876,7 +864,7 @@ function player:_move(game)
   self.sx%ss==0
   and self.sy%ss==0
  ) then
-  local bub=game.level:bubble(
+  local bub=lvl:bubble(
    self.sx\ss,self.sy\ss
   )
   if (
@@ -893,18 +881,17 @@ end
 --that player can move. returns
 --zero otherwise
 function player:_is_blocked(
- mov,game
+ mov,lvl
 )
  local x1=mov.dst_x
  local y1=mov.dst_y
 
- local lvl=game.level
  local ws=lvl:wall_size(x1,y1)
  if ws!=0 then
   return 2+(ss-ws)\2
  end
 
- local box=box_at(x1,y1,game)
+ local box=lvl:box_at(x1,y1)
  if (
   box==nil
   and self.mov!=nil
@@ -924,7 +911,7 @@ function player:_is_blocked(
   local y2=y1+mov.dy
   if (
    lvl:is_wall(x2,y2)
-   or box_at(x2,y2,game)!=nil
+   or lvl:box_at(x2,y2)!=nil
   ) then
    --no room to push box
    return 4
@@ -936,7 +923,7 @@ function player:_is_blocked(
 end
 
 function player:_check_move(
- mov,game
+ mov,lvl
 )
  if self.mov!=nil then
   mov.src_x=self.mov.dst_x
@@ -952,13 +939,13 @@ function player:_check_move(
  mov.dst_y=mov.src_y+mov.dy
 
  mov.blocked=self:_is_blocked(
-  mov,game
+  mov,lvl
  )
  if mov.blocked!=0 then
   mov.dst_x=mov.src_x
   mov.dst_y=mov.src_y
  end
- mov.dst_c=game.level:bubble(
+ mov.dst_c=lvl:bubble(
   mov.dst_x,mov.dst_y
  ) or mov.src_c
 
@@ -966,7 +953,7 @@ function player:_check_move(
 end
 
 function player:_start_move(
- mov,game
+ mov,lvl
 )
  mov.ini_rot=self.rot
  mov.ini_bubble=self.bubble
@@ -981,7 +968,7 @@ function player:_start_move(
   mov.anim=cowrap(
    "push_move",
    push_move_anim,
-   mov,self
+   mov,self,lvl
   )
  else
   mov.anim=cowrap(
@@ -992,8 +979,8 @@ function player:_start_move(
  end
 
  if mov.blocked==0 then
-  game.mov_cnt=min(
-   game.mov_cnt+1,999
+  lvl.mov_cnt=min(
+   lvl.mov_cnt+1,999
   )
   if easymode then
    self.undo_stack:push(mov)
@@ -1014,7 +1001,7 @@ function player:_start_move(
  end
 end
 
-function player:_undo(game)
+function player:_undo(lvl)
  local mov=self.undo_stack:pop()
  if mov==nil then
   return false
@@ -1024,7 +1011,7 @@ function player:_undo(game)
  self.sy=mov.src_y*ss
  self.rot=mov.ini_rot
  self.bubble=mov.ini_bubble
- game.mov_cnt-=1
+ lvl.mov_cnt-=1
  if mov.push_box then
   mov.push_box.sx=mov.dst_x*ss
   mov.push_box.sy=mov.dst_y*ss
@@ -1040,7 +1027,7 @@ _btn_mov_lookup={
  [⬇️]={rot=180,dx=0,dy=1}
 }
 
-function player:update(game)
+function player:update(lvl)
  --allow player to queue a move
  for b,mov in pairs(
   _btn_mov_lookup
@@ -1054,7 +1041,7 @@ function player:update(game)
   then
    --queue move
    self.movq=self:_check_move(
-    shallow_copy(mov),game
+    shallow_copy(mov),lvl
    )
 
    --button hold only queues
@@ -1076,8 +1063,7 @@ function player:update(game)
   if self.retry_cnt then
    self.retry_cnt+=1
    if self.retry_cnt>30 then
-    game.anim=animate_retry()
-    return
+    return animate_retry(lvl)
    end
   end
  else
@@ -1085,7 +1071,7 @@ function player:update(game)
    self.retry_cnt
    and self.retry_cnt>0
   ) then
-   if self:_undo(game) then
+   if self:_undo(lvl) then
     sfx(7)
    else
     sfx(1)
@@ -1098,7 +1084,7 @@ function player:update(game)
  if self.movq then
   if self.mov==nil then
    self:_start_move(
-    self.movq,game
+    self.movq,lvl
    )
    self.movq=nil
   else
@@ -1114,12 +1100,11 @@ function player:update(game)
  if self.tgt_rot then
   self:_rotate()
  elseif self.mov then
-  self:_move(game)
+  self:_move(lvl)
  end
 end
 
-function player:draw(game)
- local lvl=game.level
+function player:draw(lvl)
  local d=(self.rot%90+15)\30
  local o=(self.rot%180)\90
  local si
@@ -1177,7 +1162,9 @@ function level:new(lvl_index)
  o.sy0=64-8*o.nrows
  o.lvl_def=lvl_def
 
- o.id=level_id(lvl_index)
+ o.mov_cnt=0
+ o.box_cnt=0
+ o:add_objects()
 
  return o
 end
@@ -1216,6 +1203,14 @@ function level:tgt_at(x,y)
  return nil
 end
 
+function level:box_at(x,y)
+ for box in all(self.boxes) do
+  if box:is_at(x,y) then
+   return box
+  end
+ end
+end
+
 function level:bubble(x,y)
  local si=self:_sprite(x,y)
  if fget(si,flag_bub) then
@@ -1224,26 +1219,27 @@ function level:bubble(x,y)
  return nil
 end
 
-function level:add_objects(game)
+function level:add_objects()
  local bubble=(
   self.lvl_def.ini_bubble or 0
  )
  local p=self.lvl_def.ini_pos
  if p then
-  game.player=player:new(
+  self.player=player:new(
    p.x,p.y,bubble
   )
  end
+ self.boxes={}
  for x=0,self.ncols-1 do
   for y=0,self.nrows-1 do
    local si=self:_sprite(x,y)
    if fget(si,flag_player) then
-    game.player=player:new(
+    self.player=player:new(
      x,y,bubble
     )
    elseif fget(si,flag_box) then
     add(
-     game.boxes,
+     self.boxes,
      box:new(x,y,box_color(si))
     )
    end
@@ -1253,7 +1249,7 @@ function level:add_objects(game)
  return s
 end
 
-function level:_draw_floor(game)
+function level:_draw_floor()
  for x=0,self.ncols-1 do
   for y=0,self.nrows-1 do
    local sx=self.sx0+x*16
@@ -1270,8 +1266,8 @@ function level:_draw_floor(game)
    elseif fget(si,flag_tgt) then
     local c=tgt_color(si)
     local viz=(
-     game.mov_cnt==0
-     or game.player.bubble==c
+     self.mov_cnt==0
+     or self.player.bubble==c
      or c==-1
     )
     if viz or easymode then
@@ -1312,12 +1308,12 @@ function level:_draw_walls()
  end
 end
 
-function level:_draw_score(game)
+function level:_draw_score()
  if self.lvl_def.hide_score then
   return
  end
 
- local s=game.mov_cnt
+ local s=self.mov_cnt
  local x=67
  local y=53+8*self.nrows
 
@@ -1345,12 +1341,12 @@ function level:_draw_score(game)
  pal()
 end
 
-function level:_draw_boxes(game)
- for box in all(game.boxes) do
+function level:_draw_boxes()
+ for box in all(self.boxes) do
   local c
   if (
-   game.mov_cnt==0
-   or game.player.bubble==box.c
+   self.mov_cnt==0
+   or self.player.bubble==box.c
   ) then
    c=box.c
   elseif easymode then
@@ -1385,7 +1381,7 @@ function level:draw_bubbles()
  end
 end
 
-function level:draw(game)
+function level:draw()
  pal(15,1)
  if (
   not self.lvl_def.no_floor
@@ -1398,45 +1394,44 @@ function level:draw(game)
    5
   )
  end
- self:_draw_floor(game)
+ self:_draw_floor()
  self:_draw_walls()
- self:_draw_score(game)
- self:_draw_boxes(game)
+ self:_draw_score()
+ self:_draw_boxes()
+ self.player:draw(self)
+ self:draw_bubbles()
  pal()
 
  spr(134,34,0,8,2)
 end
 
-function level:_box_on_tgt_at(
- x,y,game
-)
- for box in all(game.boxes) do
-  if (
-   box:is_at(x,y)
-   and box:on_tgt(self)
-  ) then
-   return true
-  end
- end
+function level:is_done()
+ local box_cnt=0
 
- return false
-end
-
-function level:is_done(game)
- local old_cnt=game.box_cnt
- game.box_cnt=0
-
- for box in all(game.boxes) do
+ for box in all(self.boxes) do
   if box:on_tgt(self) then
-   game.box_cnt+=1
+   box_cnt+=1
   end
  end
 
- if game.box_cnt>old_cnt then
+ if box_cnt>self.box_cnt then
   sfx(3)
  end
+ self.box_cnt=box_cnt
 
- return game.box_cnt==#game.boxes
+ return box_cnt==#self.boxes
+end
+
+function level:update()
+ local anim=self.player:update(
+  self
+ )
+
+ if self:is_done() then
+  anim=animate_level_done(self)
+ end
+
+ return anim
 end
 
 -->8
@@ -1587,7 +1582,7 @@ function title:draw()
  rectfill(0,121,127,127,5)
  print(
   "press ❎ to start",30,122,0
- ) 
+ )
 
  palt(15,true)
  palt(0,false)
@@ -1624,11 +1619,7 @@ game={}
 function game:new(level_idx)
  local o=new_object(self)
 
- o.box_cnt=0
- o.mov_cnt=0
- o.boxes={}
  o.level=level:new(level_idx)
- o.level:add_objects(o)
 
  return o
 end
@@ -1636,9 +1627,7 @@ end
 function game:draw()
  cls(0)
 
- self.level:draw(self)
- self.player:draw(self)
- self.level:draw_bubbles()
+ self.level:draw()
 
  if self.anim!=nil then
   self.anim.draw()
@@ -1659,16 +1648,7 @@ function game:update()
   -- self.mov_cnt,new_hi
   --)
  else
-  self.player:update(self)
-
-  if lvl:is_done(self) then
-   self.anim=animate_level_done(
-    self.mov_cnt,
-    _stats:is_hi(
-     lvl.idx,self.mov_cnt
-    )
-   )
-  end
+  self.anim=lvl:update()
  end
 end
 __gfx__
