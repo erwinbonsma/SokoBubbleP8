@@ -323,44 +323,6 @@ function rect3d(
  rectfill(x,y,x2,y2,c)
 end
 
-dialog={}
-function dialog:new(txt)
- local o=new_object(self)
-
- o.txt=txt
-
- o.hw=0
- o.ymin=127
- o.ymax=0
-
- for t in all(txt) do
-  local s=t.big and 2 or 1
-  o.ymin=min(o.ymin,t.y-4)
-  o.ymax=max(o.ymax,t.y+s*5+4)
-  o.hw=max(o.hw,#t.s*2*s+2)
- end
-
- return o
-end
-
-function dialog:draw()
- rect3d(
-  63-self.hw,self.ymin,
-  64+self.hw,self.ymax,5,6,0
- )
-
- for t in all(self.txt) do
-  local dx=t.dx or 0
-  if t.big then
-   printbig(
-    t.s,65-#t.s*4+dx,t.y,0
-   )
-  else
-   print(t.s,64-#t.s*2,t.y,0)
-  end
- end
-end
-
 function level_start_anim()
  wait(10)
  sfx(6)
