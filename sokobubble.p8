@@ -426,7 +426,10 @@ function retry_anim(args)
 
  sfx(2)
  wait(30)
- if lvl.mov_cnt==0 then
+ if lvl.idx==#level_defs then
+  --from end go to stats
+  scene=_statsview
+ elseif lvl.mov_cnt==0 then
   --start completely afresh
   scene=_title
  else
@@ -1718,9 +1721,9 @@ function game:update()
    self.anim=nil
   end
  elseif btnp(🅾️) then
-  start_level(
-   lvl.idx%#level_defs+1
-  )
+  --start_level(
+  -- lvl.idx%#level_defs+1
+  --)
   --self.anim=animate_level_done(
   -- self.mov_cnt,new_hi
   --)
