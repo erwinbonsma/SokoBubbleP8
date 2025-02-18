@@ -331,19 +331,55 @@ function roundrect(
  line(x1+1,y2,x2-1,y2)
 end
 
-function level_start_anim()
- wait(10)
+function level_start_anim(
+ args
+)
+ local state=args[1]
+
+ state.lvl_new.hide_score=true
+
+ if state.lvl_old then
+  for i=0,128,4 do
+   state.offset=i
+   yield()
+  end
+ else
+  state.offset=128
+ end
+
+ wait(60)
+ state.lvl_new.hide_score=false
+
  sfx(6)
 end
 
 function animate_level_start(
- lvl_idx
+ lvl_new,lvl_old
 )
- local anim=cowrap(
+ local anim
+ local state={
+  offset=lvl_old and 0 or 128,
+  lvl_new=lvl_new,
+  lvl_old=lvl_old
+ }
+
+ anim=cowrap(
   "level_start",
-  level_start_anim
+  level_start_anim,
+  state
  )
- anim.draw=do_nothing
+ anim.draw=function()
+  local offset=state.offset
+  if lvl_old then
+   lvl_old:draw(-offset)
+  end
+  lvl_new:draw(128-offset)
+    spr(134,34-offset,0,8,2)
+  draw_lvl_name(
+   lvl_new,128-offset,4
+  )
+ end
+
  return anim
 end
 
@@ -370,7 +406,7 @@ function level_done_anim(args)
   lvl.idx,lvl.mov_cnt
  )
 
- start_level(lvl.idx+1)
+ start_level(lvl.idx+1,lvl)
  yield() --allow anim swap
 end
 
@@ -382,7 +418,6 @@ function animate_level_done(
   level_done_anim,
   lvl
  )
- anim.draw=do_nothing
  return anim
 end
 
@@ -404,7 +439,6 @@ function animate_retry(lvl)
  local anim=cowrap(
   "retry",retry_anim,lvl
  )
- anim.draw=do_nothing
  return anim
 end
 
@@ -490,14 +524,14 @@ function stats:get_hi(lvl_idx)
 end
 
 function draw_lvl_name(
- lvl,y
+ lvl,x_offset,y
 )
  local s=(
   ""..lvl.idx.."."
   ..lvl.lvl_def.name
  )
- local xmin=64-#s*2
- local xmax=62+#s*2
+ local xmin=64-#s*2+x_offset
+ local xmax=62+#s*2+x_offset
  roundrect(
   xmin-2,y,xmax+2,y+8,13
  )
@@ -549,7 +583,7 @@ function animate_lvl_switch(
     offset<64 and lvl_l or lvl_r
    )
    draw_lvl_name(
-    lvl,state.name_y
+    lvl,0,state.name_y
    )
   end
  end
@@ -624,7 +658,7 @@ function levelmenu:draw()
  end
 
  self.lvl:draw()
- draw_lvl_name(self.lvl,4)
+ draw_lvl_name(self.lvl,0,4)
 
  spr(142,4,56,1,2)
  spr(143,115,56,1,2)
@@ -1482,13 +1516,15 @@ function _draw()
  scene:draw()
 end
 
-function start_level(idx)
- _game=game:new(idx)
- scene=_game
- _game.anim=animate_level_start(
-  idx
- )
+function start_level(
+ idx,old_lvl
+)
  _levelmenu:set_lvl(idx)
+ _game=game:new(idx)
+ _game.anim=animate_level_start(
+  _game.level,old_lvl
+ )
+ scene=_game
 end
 
 title={}
@@ -1651,11 +1687,14 @@ end
 function game:draw()
  cls(0)
 
- self.level:draw()
- spr(134,34,0,8,2)
-
- if self.anim!=nil then
+ if (
+  self.anim and self.anim.draw
+ ) then
   self.anim.draw()
+ else
+  self.level:draw()
+
+  spr(134,34,0,8,2)
  end
 end
 
