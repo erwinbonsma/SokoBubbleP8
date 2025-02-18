@@ -802,6 +802,7 @@ function player:new(x,y,bubble)
  o.rot=180
  o.tgt_rot=nil
  o.undo_stack=undo_stack:new(8)
+ o.mov_history=""
 
  return o
 end
@@ -1029,9 +1030,10 @@ function player:_start_move(
  end
 
  if mov.blocked==0 then
-  lvl.mov_cnt=min(
-   lvl.mov_cnt+1,999
-  )
+  if lvl.mov_cnt<999 then
+   lvl.mov_cnt+=1
+   self.mov_history..=mov.button
+  end
   if easymode then
    self.undo_stack:push(mov)
   end
@@ -1061,6 +1063,10 @@ function player:_undo(lvl)
  self.sy=mov.src_y*ss
  self.rot=mov.ini_rot
  self.bubble=mov.ini_bubble
+ self.mov_history=sub(
+  self.mov_history,0,
+  #self.mov_history-1
+ )
  lvl.mov_cnt-=1
  if mov.push_box then
   mov.push_box.sx=mov.dst_x*ss
@@ -1093,6 +1099,7 @@ function player:update(lvl)
    self.movq=self:_check_move(
     shallow_copy(mov),lvl
    )
+   self.movq.button=b
 
    --button hold only queues
    --a short-lived move request
@@ -1485,6 +1492,12 @@ function level:update()
  )
 
  if self:is_done() then
+  printh(
+   "solved "..self.lvl_def.name
+   .." in "..self.mov_cnt
+   .." moves\n"
+   ..self.player.mov_history
+  )
   anim=animate_level_done(self)
  end
 
