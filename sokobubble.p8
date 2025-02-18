@@ -561,7 +561,9 @@ levelmenu={}
 function levelmenu:new()
  local o=new_object(self)
 
- o.lvl=level:new(1)
+ o.lvl=level:new(
+  _stats.max_lvl_idx
+ )
 
  return o
 end
@@ -577,7 +579,13 @@ function levelmenu:update()
  local max_idx=_stats.max_lvl_idx
 
  if max_idx==1 or btnp(❎) then
-  start_level(self.lvl.idx)
+  if (
+   self.lvl.idx<#level_defs
+  ) then
+   start_level(self.lvl.idx)
+  else
+   scene=_statsview
+  end
   return
  end
 
@@ -617,12 +625,15 @@ function levelmenu:draw()
  spr(142,4,56,1,2)
  spr(143,115,56,1,2)
 
- local w=34
+ local s=(
+  self.lvl.idx==#level_defs
+  and "press ❎ for stats"
+  or "press ❎ to play"
+ )
+ local w=#s*2+4
  roundrect(64-w,118,63+w,126,13)
  rectfill(92-w,121,94-w,123,12)
- print(
-  "press ❎ to play",66-w,120,1
- )
+ print(s,66-w,120,1)
 end
 
 statsview={}
@@ -1447,8 +1458,8 @@ end
 
 function _init()
  _title=title:new()
- _levelmenu=levelmenu:new()
  _stats=stats:new()
+ _levelmenu=levelmenu:new()
  _statsview=statsview:new()
 
  --disable btnp auto-repeat
