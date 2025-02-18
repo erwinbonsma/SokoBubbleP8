@@ -561,11 +561,15 @@ levelmenu={}
 function levelmenu:new()
  local o=new_object(self)
 
- o.lvl=level:new(
-  _stats.max_lvl_idx
- )
+ o:set_lvl(_stats.max_lvl_idx)
 
  return o
+end
+
+function levelmenu:set_lvl(
+ lvl_idx
+)
+ self.lvl=level:new(lvl_idx)
 end
 
 function levelmenu:update()
@@ -1484,6 +1488,7 @@ function start_level(idx)
  _game.anim=animate_level_start(
   idx
  )
+ _levelmenu:set_lvl(idx)
 end
 
 title={}
