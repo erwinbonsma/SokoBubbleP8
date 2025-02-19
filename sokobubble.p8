@@ -131,6 +131,7 @@ ss=16
 track_anim_colors={4,2,13}
 
 easymode=true
+music_on=true
 
 function level_id(level_idx)
  --level id allows reset of
@@ -304,6 +305,10 @@ function shallow_copy(t)
   t2[k]=v
  end
  return t2
+end
+
+function centerprint(s,y,c)
+ print(s,64-#s*2,y,c)
 end
 
 function printbig(s,x0,y0,c)
@@ -492,6 +497,12 @@ function stats:_update_total()
    self:get_hi(i) or 0
   )
  end
+end
+
+function stats:all_solved()
+ return (
+  self.max_lvl_idx==#level_defs
+ )
 end
 
 function stats:is_hi(
@@ -687,7 +698,7 @@ end
 
 function statsview:update()
  if btnp(❎) then
-  scene=_levelmenu
+  scene=_title
  end
 end
 
@@ -1553,22 +1564,52 @@ function title:new()
  o.boxr={x=116,c=4}
  o.boxl={x=4,c=2}
  o.boxes={o.boxr,o.boxl}
- o.tick=0
+
+ o.item_idx=1
+ o.help=false
 
  return o
 end
 
-function title:update()
- self.tick=(self.tick+1)%1
- if self.tick!=0 then
-  return
+function title:_change_option()
+ if self.item_idx==2 then
+  easymode=not easymode
+ elseif self.item_idx==3 then
+  music_on=not music_on
+  if music_on then
+   music(0)
+  else
+   music(-1)
+  end
+ elseif self.item_idx==4 then
+  self.help=not self.help
  end
+end
+
+function title:update()
+ local max_idx=(
+  _stats:all_solved() and 5 or 4
+ )
 
  if btnp(❎) then
-  scene=_levelmenu
-  return
+  if self.item_idx==1 then
+   scene=_levelmenu
+   return
+  elseif self.item_idx==5 then
+   scene=_statsview
+  else
+   self:_change_option()
+  end
+ elseif btnp(⬆️) then
+  self.item_idx=1+(
+   self.item_idx+max_idx-2
+  )%max_idx
+ elseif btnp(⬇️) then
+  self.item_idx=1+(
+   self.item_idx
+  )%max_idx
  elseif btnp(⬅️) or btnp(➡️) then
-  easymode=not easymode
+  self:_change_option()
  end
 
  local car=self.car
@@ -1618,9 +1659,7 @@ function title:update()
  end
 end
 
-function title:draw()
- cls()
-
+function title:_draw_logo()
  print("eriban's",48,5,13)
  pal(15,1)
  pal(5,12)
@@ -1632,35 +1671,92 @@ function title:draw()
   end
  end
  pal()
+end
 
- rect3d(34,56,93,95,1,13,1)
- print(
-  easymode and "easy" or "hard",
-  48,58,13
- )
- print("◆◆",72,58,13)
- print("[    ] ⬅️➡️",44,58,0)
- local y=69+(
-  easymode and 0 or 7
- )
+function title:_draw_help()
+ rect3d(35,56,91,96,1,13,2)
+
+ local y=59
+ centerprint("help",y,12)
+ y+=10
+
  print("◆◆◆◆ move",37,y,13)
  print("⬅️➡️⬆️⬇️",37,y,0)
  y+=7
- if easymode then
-  print("◆       undo",37,y,13)
-  print("❎",37,y,0)
-  y+=7
- end
- print("◆       retry",37,y,13)
+
+ print("◆",37,y,13)
+ print("❎",37,y,0)
+ print(
+  "undo",73,y,
+  easymode and 13 or 0
+ )
+ y+=7
+
+ print("retry",71,y,13)
+ y+=3
+ print("◆",37,y,13)
  print("❎(hold)",37,y,0)
- y+=6
- print(" exit",73,y,13)
- print("/",73,y,0)
+ y+=3
+ print("exit",73,y,13)
+end
+
+menu_items={
+ "start",
+ "mode [    ]",
+ "music [   ]",
+ "help",
+ "stats"
+}
+
+function title:_draw_menu()
+ rect3d(35,56,91,96,1,13,2)
+
+ local y=50+8*self.item_idx
+ print(
+  "\^:0103070301000000",37,y,12
+ )
+ print(
+  "\^:0406070604000000",87,y,12
+ )
+
+ for i=1,#menu_items do
+  local c=(
+   self.item_idx==i and 12 or 13
+  )
+  if (
+   i==5
+   and not _stats:all_solved()
+  ) then
+   c=0
+  end
+  centerprint(
+   menu_items[i],50+8*i,c
+  )
+ end
+
+ print("[    ]",62,66,0)
+ print(
+  easymode and "easy" or "hard",
+  66,66,13
+ )
+ local s=(
+  music_on and "on" or "off"
+ )
+ print("[   ]",66,74,0)
+ print(s,76-#s*2,74,13)
+end
+
+function title:draw()
+ cls()
+
+ self:_draw_logo()
+ if self.help then
+  self:_draw_help()
+ else
+  self:_draw_menu()
+ end
 
  rectfill(0,121,127,127,5)
- print(
-  "press ❎ to start",30,122,0
- )
 
  palt(15,true)
  palt(0,false)
