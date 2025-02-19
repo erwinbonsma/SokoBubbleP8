@@ -644,10 +644,10 @@ function levelmenu:update()
    self.lvl.idx<#level_defs
   ) then
    start_level(self.lvl.idx)
+   return
   else
-   scene=_statsview
+   sfx(1)
   end
-  return
  end
 
  if btnp(➡️) then
@@ -686,11 +686,13 @@ function levelmenu:draw()
  spr(142,4,56,1,2)
  spr(143,115,56,1,2)
 
- local s=(
+ if (
   self.lvl.idx==#level_defs
-  and "press ❎ for stats"
-  or "press ❎ to play"
- )
+ ) then
+  return
+ end
+
+ local s="press ❎ to play"
  local w=#s*2+4
  roundrect(64-w,118,63+w,126,13)
  rectfill(92-w,121,94-w,123,12)
