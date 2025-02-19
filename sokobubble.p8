@@ -704,7 +704,7 @@ function statsview:draw()
   print(
    ""..i.."."..
    level_defs[i].name,
-   x+6-(i\10)*4,y,13
+   x+6-(i>=10 and 4 or 0),y,13
   )
   local s="".._stats:get_hi(i)
   print(s,x+62-#s*4,y,13)
