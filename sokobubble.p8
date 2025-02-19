@@ -284,7 +284,10 @@ function coinvoke(wrapped_cr)
  return costatus(cr)=="dead"
 end
 
-function do_nothing()
+function ease(x)
+ return (
+  x<=0.5 and x*x*2 or 1-ease(1-x)
+ )
 end
 
 function wait(steps)
@@ -336,18 +339,16 @@ function level_start_anim(
 )
  local state=args[1]
 
- state.lvl_new.hide_score=true
-
  if state.lvl_old then
-  for i=0,128,4 do
-   state.offset=i
+  for i=0,60 do
+   state.offset=ease(i/60)*128
    yield()
   end
+  wait(30)
  else
   state.offset=128
  end
 
- wait(60)
  state.lvl_new.hide_score=false
 
  sfx(6)
@@ -362,6 +363,7 @@ function animate_level_start(
   lvl_new=lvl_new,
   lvl_old=lvl_old
  }
+ lvl_new.hide_score=true
 
  anim=cowrap(
   "level_start",
@@ -425,7 +427,7 @@ function retry_anim(args)
  local lvl=args[1]
 
  sfx(2)
- wait(30)
+ wait(60)
  if lvl.idx==#level_defs then
   --from end go to stats
   scene=_statsview
@@ -546,19 +548,16 @@ function level_switch_anim(args)
 
  sfx(1)
 
- for i=3,-8,-1 do
-  state.name_y=i
-  yield()
- end
- state.name_y=nil
+ for i=0,60 do
+  if i<10 then
+   state.name_y=3-i
+  elseif i>50 then
+   state.name_y=i-57
+  else
+   state.name_y=nil
+  end
 
- for i=0,128,4 do
-  state.offset=i
-  yield()
- end
-
- for i=-7,3 do
-  state.name_y=i
+  state.offset=ease(i/60)*128
   yield()
  end
 end
