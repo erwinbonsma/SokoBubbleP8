@@ -1362,8 +1362,20 @@ end
 function level:_draw_floor(
  x0,y0
 )
+ if (
+  not self.lvl_def.no_floor
+ ) then
+  rectfill(
+   x0+8,y0+8,
+   x0+self.ncols*ss-8,
+   y0+self.nrows*ss-8,
+   5
+  )
+ end
+
  local xmax=x0+self.ncols*16-1
  local ymax=y0+self.nrows*16-1
+
  for x=0,self.ncols-1 do
   local sx=x0+x*16
   for y=0,self.nrows-1 do
@@ -1504,16 +1516,6 @@ function level:draw(x_offset)
  local x0=self.sx0+x_offset
  local y0=self.sy0
  pal(15,1)
- if (
-  not self.lvl_def.no_floor
- ) then
-  rectfill(
-   x0+8,y0+8,
-   x0+self.ncols*ss-8,
-   y0+self.nrows*ss-8,
-   5
-  )
- end
  self:_draw_floor(x0,y0)
  self:_draw_walls(x0,y0)
  if not self.hide_score then
