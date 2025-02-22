@@ -395,7 +395,7 @@ function animate_level_start(
    lvl_old:draw(-offset)
   end
   lvl_new:draw(128-offset)
-    spr(134,34-offset,0,8,2)
+  spr(134,34-offset,0,8,2)
   draw_lvl_name(
    lvl_new,128-offset,4
   )
@@ -1117,7 +1117,18 @@ _btn_mov_lookup={
  [⬇️]={rot=180,dx=0,dy=1}
 }
 
-function player:update(lvl)
+function player:freeze()
+ self.frozen=true
+ self.movq=nil
+end
+
+function player:is_moving()
+ return self.mov!=nil
+end
+
+function player:_handle_input(
+ lvl
+)
  --allow player to queue a move
  for b,mov in pairs(
   _btn_mov_lookup
@@ -1186,6 +1197,12 @@ function player:update(lvl)
     self.movq=nil
    end
   end
+ end
+end
+
+function player:update(lvl)
+ if not self.frozen then
+  self:_handle_input(lvl)
  end
 
  if self.tgt_rot then
@@ -1526,13 +1543,18 @@ function level:update()
  )
 
  if self:is_done() then
-  printh(
-   "solved "..self.lvl_def.name
-   .." in "..self.mov_cnt
-   .." moves\n"
-   ..self.player.mov_history
-  )
-  anim=animate_level_done(self)
+  self.player:freeze()
+  if (
+   not self.player:is_moving()
+  ) then
+   printh(
+    "solved "..self.lvl_def.name
+    .." in "..self.mov_cnt
+    .." moves\n"
+    ..self.player.mov_history
+   )
+   anim=animate_level_done(self)
+  end
  end
 
  return anim
