@@ -721,11 +721,11 @@ function statsview:draw()
 
  spr(134,32,0,8,2)
 
- rect3d(1,22,126,121,1,13,2)
+ rect3d(1,20,126,121,1,13,2)
 
  for i=1,#level_defs-1 do
   local x=((i-1)\12)*64
-  local y=((i-1)%12)*7+24
+  local y=((i-1)%12)*7+22
   print(
    ""..i.."."..
    level_defs[i].name,
@@ -736,9 +736,9 @@ function statsview:draw()
  end
 
  local s="".._stats.total
- printbig(s,64-4*#s,109,12)
- print("total",14,108,12)
- print("moves",14,115,12)
+ printbig(s,66,109,12)
+ print("total",42,108,12)
+ print("moves",42,115,12)
 end
 
 box={}
