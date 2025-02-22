@@ -1202,7 +1202,12 @@ end
 
 function player:update(lvl)
  if not self.frozen then
-  self:_handle_input(lvl)
+  local anim=self:_handle_input(
+   lvl
+  )
+  if anim then
+   return anim
+  end
  end
 
  if self.tgt_rot then
