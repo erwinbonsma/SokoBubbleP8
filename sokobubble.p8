@@ -650,7 +650,7 @@ function levelmenu:update()
    start_level(self.lvl.idx)
    return
   else
-   sfx(1)
+   scene=_title
   end
  end
 
@@ -690,16 +690,21 @@ function levelmenu:draw()
  spr(142,4,56,1,2)
  spr(143,115,56,1,2)
 
+ local s
  if (
   self.lvl.idx==#level_defs
  ) then
-  return
+  s="❎ back to menu"
+ else
+  s="press ❎ to play"
  end
 
- local s="press ❎ to play"
  local w=#s*2+4
  roundrect(64-w,118,63+w,126,13)
- rectfill(92-w,121,94-w,123,12)
+ local xx=(
+  67-w+4*#split(s,"❎")[1]
+ )
+ rectfill(xx,121,xx+3,123,12)
  print(s,66-w,120,1)
 end
 
