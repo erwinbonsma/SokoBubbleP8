@@ -126,7 +126,8 @@ bub_pals={
  {[4]=4,[9]=9,[10]=10},--yellow
  {[4]=2,[9]=8,[10]=14},--red
  {[4]=1,[9]=3,[10]=11},--green
- {[4]=1,[9]=12,[10]=6} --blue
+ {[4]=1,[9]=12,[10]=6},--blue
+ {[4]=1,[9]=5,[10]=6},--hidden
 }
 
 box_colors={
@@ -178,9 +179,7 @@ function bubble_pal(idx)
   pal(4,p[4])
  else
   --hidden
-  pal(10,9)
-  pal(9,4)
-  pal(4,2)
+  pal(bub_pals[5])
  end
 end
 
@@ -1406,7 +1405,7 @@ function level:_draw_floor(
     if viz or easymode then
      bubble_pal(c)
     else
-     bubble_pal(9)
+     pal(9,1)
     end
     spr(162,sx,sy,2,2)
     bubble_pal()
