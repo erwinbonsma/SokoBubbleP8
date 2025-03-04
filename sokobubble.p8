@@ -796,31 +796,31 @@ function helpview:draw()
  pal()
 
  --show key legend
- rectfill(0,113,127,127,5)
+ rectfill(0,113,127,127,1)
 
  local printsymbol=function(
   ch,x,y
  )
-  print("◆",x,y,6)
-  print(ch,x,y,0)
+  print("◆",x,y,0)
+  print(ch,x,y,13)
  end
 
  printsymbol("⬅️",2,118)
  printsymbol("➡️",16,118)
  printsymbol("⬆️",9,115)
  printsymbol("⬇️",9,121)
- print("move",25,118,6)
+ print("move",25,118,12)
 
  printsymbol("❎",49,118)
  print(
   "undo",58,118,
-  easymode and 6 or 0
+  easymode and 12 or 0
  )
 
- print("hold",82,118,0)
+ print("hold",82,118,13)
  printsymbol("❎",98,118)
- print("retry",107,115,6)
- print("/exit",107,121,6)
+ print("retry",107,115,12)
+ print("/exit",107,121,12)
 end
 
 box={}
