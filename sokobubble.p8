@@ -447,24 +447,28 @@ end
 
 function retry_anim(args)
  local lvl=args[1]
+ local give_up=args[2]
 
  sfx(2)
  wait(60)
  if lvl.idx==#level_defs then
   --from end go to stats
-  scene=_statsview
- elseif lvl.mov_cnt==0 then
-  --start completely afresh
-  scene=_title
+  show_stats(show_levelmenu)
+ elseif give_up then
+  show_levelmenu()
  else
+  --retry
   start_level(lvl.idx)
  end
  yield() --allow anim swap
 end
 
-function animate_retry(lvl)
+function animate_retry(
+ lvl,give_up
+)
  local anim=cowrap(
-  "retry",retry_anim,lvl
+  "retry",retry_anim,
+  lvl,give_up or lvl.mov_cnt==0
  )
  return anim
 end
@@ -653,7 +657,7 @@ function levelmenu:update()
    start_level(self.lvl.idx)
    return
   else
-   scene=_title
+   show_stats(show_levelmenu)
   end
  end
 
@@ -697,7 +701,7 @@ function levelmenu:draw()
  if (
   self.lvl.idx==#level_defs
  ) then
-  s="❎ back to menu"
+  s="❎ show stats"
  else
   s="press ❎ to play"
  end
@@ -720,7 +724,7 @@ end
 
 function statsview:update()
  if btnp(❎) then
-  scene=_title
+  self.hide_callback()
  end
 end
 
@@ -758,7 +762,7 @@ end
 
 function helpview:update()
  if btnp(❎) then
-  scene=_title
+  show_mainmenu()
  end
 end
 
@@ -1648,7 +1652,7 @@ end
 --main
 
 function _init()
- _title=title:new()
+ _mainmenu=mainmenu:new()
  _stats=stats:new()
  _levelmenu=levelmenu:new()
  _statsview=statsview:new()
@@ -1658,9 +1662,9 @@ function _init()
  --to use custom hold logic
  poke(0x5f5c,255)
 
- scene=_title
  music(0)
- --start_level(19)
+
+ show_mainmenu()
 end
 
 function _update60()
@@ -1679,25 +1683,49 @@ function start_level(
  _game.anim=animate_level_start(
   _game.level,old_lvl
  )
+ menuitem(1,"level menu",
+  function()
+   _game.anim=animate_retry(
+    _game.level,true
+   )
+  end
+ )
  scene=_game
 end
 
-title={}
-function title:new()
+function show_levelmenu()
+ menuitem(1,"main menu",
+  show_mainmenu
+ )
+ scene=_levelmenu
+end
+
+function show_mainmenu()
+ menuitem(1)
+ scene=_mainmenu
+end
+
+function show_stats(cb)
+ menuitem(1)
+ _statsview.hide_callback=cb
+ scene=_statsview
+end
+
+function show_help()
+ menuitem(1)
+ scene=_helpview
+end
+
+mainmenu={}
+function mainmenu:new()
  local o=new_object(self)
 
- o.car={x=60,dx=0.5,c=2}
- o.boxr={x=116,c=4}
- o.boxl={x=4,c=2}
- o.boxes={o.boxr,o.boxl}
-
  o.item_idx=1
- o.help=false
 
  return o
 end
 
-function title:_change_option()
+function mainmenu:_change_option()
  if self.item_idx==2 then
   easymode=not easymode
  elseif self.item_idx==3 then
@@ -1710,19 +1738,19 @@ function title:_change_option()
  end
 end
 
-function title:update()
+function mainmenu:update()
  local max_idx=(
   _stats:all_solved() and 5 or 4
  )
 
  if btnp(❎) then
   if self.item_idx==1 then
-   scene=_levelmenu
+   show_levelmenu()
    return
   elseif self.item_idx==5 then
-   scene=_statsview
+   show_stats(show_mainmenu)
   elseif self.item_idx==4 then
-   scene=_helpview
+   show_help()
   else
    self:_change_option()
   end
@@ -1782,7 +1810,7 @@ menu_items={
  "stats"
 }
 
-function title:_draw_menu()
+function mainmenu:_draw_menu()
  rect3d(35,56,91,96,1,13,2)
 
  local y=50+8*self.item_idx
@@ -1820,7 +1848,7 @@ function title:_draw_menu()
  print(s,76-#s*2,74,13)
 end
 
-function title:draw()
+function mainmenu:draw()
  cls()
 
  draw_big_logo()
