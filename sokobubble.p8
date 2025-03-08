@@ -2220,6 +2220,18 @@ end
 
 function received_hof(s)
  printh("received: "..s)
+ local f=split(s)
+ if #f!=48 then
+  printh("unexpected hof size")
+  return
+ end
+ hof={}
+ hof_total=0
+ for i=1,#f,2 do
+  local nmov=tonum(f[i+1])
+  add(hof,{f[i],nmov})
+  hof_total+=nmov
+ end
 end
 
 function short_mov_str(hist)
