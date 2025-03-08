@@ -448,9 +448,7 @@ function level_done_anim(args)
  sfx(4)
  wait(120)
 
- if stats:is_hi(
-  lvl.idx,lvl.mov_cnt
- ) then
+ if lvl:is_hi() then
   sfx(8)
   for i=1,90 do
    lvl.force_show_score=(
@@ -591,9 +589,7 @@ end
 function stats:_update_total()
  self.total=0
  for i=1,#level_defs do
-  self.total+=(
-   self:get_hi(i) or 0
-  )
+  self.total+=self:get_hi(i)
  end
 end
 
@@ -603,18 +599,11 @@ function stats:all_solved()
  )
 end
 
-function stats:is_hi(
- lvl_idx,num_moves
-)
- local hi=self:get_hi(lvl_idx)
- return num_moves<hi
-end
-
 function stats:mark_done(
  lvl_idx,num_moves
 )
- if self:is_hi(
-  lvl_idx,num_moves
+ if (
+  num_moves<self:get_hi(lvl_idx)
  ) then
   dset(
    1+level_id(lvl_idx),
@@ -1449,13 +1438,13 @@ end
 --level
 
 level={}
-function level:new(lvl_index)
+function level:new(lvl_idx)
  local o=new_object(self)
 
  local lvl_def=level_defs[
-  lvl_index
+  lvl_idx
  ]
- o.idx=lvl_index
+ o.idx=lvl_idx
  o.x0=lvl_def.mapdef[1]
  o.y0=lvl_def.mapdef[2]
  o.ncols=lvl_def.mapdef[3]
@@ -1468,7 +1457,23 @@ function level:new(lvl_index)
  o.box_cnt=0
  o:add_objects()
 
+ --hi-scores at start of level
+ o.hi=_stats:get_hi(lvl_idx)
+ o.global_hi=(
+  hof and hof[lvl_idx][2] or 999
+ )
+
  return o
+end
+
+function level:is_hi()
+ return (
+  self.mov_cnt<self.hi
+  or (
+   hof and
+   self.mov_cnt<self.global_hi
+  )
+ )
 end
 
 function level:_sprite(mx,my)
@@ -1642,22 +1647,15 @@ function level:_draw_score(
  local x=67+x_offset
  local y=53+8*self.nrows
 
- local hi=stats:get_hi(self.idx)
- local global=false
- if hof then
-  local global_hi=hof[
-   self.idx
-  ][2]
-  if (
-   global_hi!=999 and
-   self.mov_cnt<=global_hi
-  ) then
-   --we may still beat the
-   --global hi-score, so show
-   --that as reference
-   hi=global_hi
-   global=true
-  end
+ local hi=self.hi
+ if (
+  self.global_hi!=999 and
+  self.mov_cnt<=self.global_hi
+ ) then
+  --we may still beat the
+  --global hi-score, so use
+  --that as reference
+  hi=self.global_hi
  end
 
  pal(6,13)
@@ -1670,9 +1668,11 @@ function level:_draw_score(
   s=hi-s
   pal(7,12)
 
-  x+=5
-  spr(global and 11 or 10,x,y)
-  x-=10
+  spr(
+   hi==self.global_hi
+   and 11 or 10,x+5,y
+  )
+  x-=5
  else
   pal(7,13)
  end
