@@ -1783,7 +1783,7 @@ function _init()
  _levelmenu=levelmenu:new()
  _statsview=statsview:new()
  _helpview=helpview:new()
- _gpio=gpio:new()
+ _gpio=gpio:new(received_hof)
 
  hof_total=0
  for k,v in pairs(hof) do
@@ -2218,6 +2218,10 @@ function dummy_hof()
  return hof
 end
 
+function received_hof(s)
+ printh("received: "..s)
+end
+
 function short_mov_str(hist)
  local mov=nil
  local mov_cnt=0
@@ -2254,10 +2258,11 @@ function post_result(lvl)
  )
 
  printh(s)
+ _gpio:output(s)
 end
 
-gpio_a_write=0xf80
-gpio_a_read=0xfc0
+gpio_a_write=0x5f80
+gpio_a_read=0x5fc0
 gpio_blksize=63
 
 gpio={}
@@ -2268,10 +2273,17 @@ function gpio:new(callback)
  o.txt_out={}
  o.connected=false
  o.txt_in=""
- poke(gpio_a_write,255)
  poke(gpio_a_read,0)
+ poke(gpio_a_write,255)
+ printh("p8: enabling gpio")
 
- return self
+ return o
+end
+
+function gpio:output(s)
+ if self.connected then
+  add(self.txt_out,s)
+ end
 end
 
 function gpio:_write()
@@ -2297,7 +2309,7 @@ function gpio:_read()
  if n==128 then
   self.callback(self.txt_in)
   self.txt_in=""
- elseif n<gpio_blk_size then
+ elseif n<=gpio_blksize then
   for i=1,n do
    self.txt_in..=chr(peek(
     gpio_a_read+i
@@ -2320,7 +2332,7 @@ function gpio:update()
   end
  end
  if peek(gpio_a_read)!=0 then
-  self._read()
+  self:_read()
  end
 end
 __gfx__
