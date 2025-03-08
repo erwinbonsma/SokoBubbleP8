@@ -1783,6 +1783,7 @@ function _init()
  _levelmenu=levelmenu:new()
  _statsview=statsview:new()
  _helpview=helpview:new()
+ _gpio=gpio:new()
 
  hof_total=0
  for k,v in pairs(hof) do
@@ -1799,6 +1800,7 @@ function _init()
 end
 
 function _update60()
+ _gpio:update()
  scene:update()
 end
 
@@ -2252,6 +2254,74 @@ function post_result(lvl)
  )
 
  printh(s)
+end
+
+gpio_a_write=0xf80
+gpio_a_read=0xfc0
+gpio_blksize=63
+
+gpio={}
+function gpio:new(callback)
+ local o=new_object(self)
+
+ o.callback=callback
+ o.txt_out={}
+ o.connected=false
+ o.txt_in=""
+ poke(gpio_a_write,255)
+ poke(gpio_a_read,0)
+
+ return self
+end
+
+function gpio:_write()
+ local s=self.txt_out[1]
+ if #s==0 then
+  --signal end of string
+  poke(gpio_a_write,128)
+  deli(self.txt_out,1)
+ else
+  local n=max(#s,gpio_blksize)
+  for i=1,n do
+   poke(
+    gpio_a_write+i,ord(s[i])
+   )
+  end
+  poke(gpio_a_write,n)
+  self.txt_out[1]=sub(s,n+1)
+ end
+end
+
+function gpio:_read()
+ local n=peek(gpio_a_read)
+ if n==128 then
+  self.callback(self.txt_in)
+  self.txt_in=""
+ elseif n<gpio_blk_size then
+  for i=1,n do
+   self.txt_in..=chr(peek(
+    gpio_a_read+i
+   ))
+  end
+ else
+  printh(
+   "unexpected read size"..n
+  )
+ end
+ --release buffer for write
+ poke(gpio_a_read,0)
+end
+
+function gpio:update()
+ if peek(gpio_a_write)==0 then
+  self.connected=true
+  if #self.txt_out>0 then
+   self:_write()
+  end
+ end
+ if peek(gpio_a_read)!=0 then
+  self._read()
+ end
 end
 __gfx__
 00000000000000000000000000000000000000000000000000000000000000000000000000000000000cd000003ccc0000999900000000000000000000000000
