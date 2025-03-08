@@ -2,9 +2,30 @@ const gpioReadAddress = 0;
 const gpioWriteAddress = 64;
 const gpioBlockSize = 63;
 
+function makeHOFString(hof) {
+    return hof.map(v => v.join()).join();
+}
+
+var sokobubbleHOF = Array(24).fill(null).map(_ => ["-", 999]);
+sokobubbleHOF[0] = ["bob", 18];
+sokobubbleHOF[1] = ["alice", 30];
+
 var gpioConnected = false;
 var gpioTxtIn = "";
-var gpioTxtOut = "alice,40,bob,50,charlie,60,,999,,999,,999,,999,,999,,999,,999,,999,,999,,999,,999,,999,,999,,999,,999,,999,,999,,999,,999,,999,,999";
+var gpioTxtOut = makeHOFString(sokobubbleHOF);
+
+function updateHOF(levelIdx, numMoves, playerName) {
+    const levelEntry = sokobubbleHOF[levelIdx - 1];
+    if (numMoves >= levelEntry[1]) return;
+
+    // Improved score
+    levelEntry[0] = playerName;
+    levelEntry[1] = numMoves;
+
+    if (gpioTxtOut === undefined) {
+        gpioTxtOut = makeHOFString(sokobubbleHOF);
+    }
+}
 
 function gpioRead() {
     const n = pico8_gpio[gpioReadAddress];
@@ -14,6 +35,14 @@ function gpioRead() {
         console.info("GPIO: Connection established");
     } else if (n == 128) {
         console.info(`GPIO: Received ${gpioTxtIn}`);
+        const args = gpioTxtIn.split(",");
+        if (args.length != 4) {
+            console.warn("Unexpected length")
+        } else {
+            const [levelIdx, numMoves, playerName, moves] = args;
+            updateHOF(levelIdx, numMoves, playerName);
+        }
+
         gpioTxtIn = "";
     } else if (n <= gpioBlockSize) {
         for (var i = 1; i <= n; i++) {

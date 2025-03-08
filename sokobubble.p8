@@ -142,10 +142,10 @@ bub_colors={
  [94]=3
 }
 
+track_anim_colors={4,2,13}
+
 --sprite size
 ss=16
-
-track_anim_colors={4,2,13}
 
 easymode=true
 music_on=true
@@ -607,7 +607,7 @@ function stats:is_hi(
  lvl_idx,num_moves
 )
  local hi=self:get_hi(lvl_idx)
- return hi==0 or num_moves<hi
+ return num_moves<hi
 end
 
 function stats:mark_done(
@@ -632,11 +632,14 @@ function stats:mark_done(
 end
 
 function stats:is_done(lvl_idx)
- return self:get_hi(lvl_idx)>0
+ return self:get_hi(lvl_idx)<999
 end
 
 function stats:get_hi(lvl_idx)
- return dget(1+level_id(lvl_idx))
+ local hi=dget(
+  1+level_id(lvl_idx)
+ )
+ return hi>0 and hi or 999
 end
 
 function draw_lvl_name(
@@ -1642,28 +1645,36 @@ function level:_draw_score(
  local hi=stats:get_hi(self.idx)
  local global=false
  if hof then
-  if hof_total<=hi then
+  local global_hi=hof[
+   self.idx
+  ][2]
+  if (
+   global_hi!=999 and
+   self.mov_cnt<=global_hi
+  ) then
+   --we may still beat the
+   --global hi-score, so show
+   --that as reference
+   hi=global_hi
    global=true
-   hi=hof_total
   end
  end
 
  pal(6,13)
  pal(5,1)
  if (
-  hi and hi>=s
+  hi!=999 and s<=hi
   and not self.force_show_score
  ) then
-  pal(7,12)
+  --show delta wrt to hi-score
   s=hi-s
- else
-  pal(7,13)
- end
+  pal(7,12)
 
- if hof then
   x+=5
   spr(global and 11 or 10,x,y)
   x-=10
+ else
+  pal(7,13)
  end
 
  for i=1,3 do
@@ -1776,19 +1787,11 @@ end
 
 function _init()
  _stats=stats:new()
-
- hof=dummy_hof()
-
  _mainmenu=mainmenu:new()
  _levelmenu=levelmenu:new()
  _statsview=statsview:new()
  _helpview=helpview:new()
  _gpio=gpio:new(received_hof)
-
- hof_total=0
- for k,v in pairs(hof) do
-  hof_total+=v[2]
- end
 
  --disable btnp auto-repeat
  --to use custom hold logic
@@ -1855,13 +1858,14 @@ function mainmenu:new()
 
  o.item_idx=1
  o.name_edit=textedit:new(
-  hof
-  and load_name()
-  or "--------"
+  load_name(),"player 1"
  )
- o.name_edit.c=hof and 1 or 0
 
  return o
+end
+
+function mainmenu:plyr_name()
+ return self.name_edit:value()
 end
 
 function mainmenu:_change_option()
@@ -2001,12 +2005,14 @@ function mainmenu:_draw_menu()
  rectfill(58,89,70,95,13)
  print(s,65-#s*2,90,1)
 
- c=(
+ rectfill(
+  58,97,90,103,
   self.name_edit.active
   and 12 or 13
  )
- rectfill(58,97,90,103,c)
- self.name_edit:draw(59,98)
+ self.name_edit:draw(
+  59,98,hof and 1 or 0
+ )
 end
 
 function mainmenu:draw()
@@ -2058,19 +2064,26 @@ function game:update()
 end
 -->8
 textedit={}
-function textedit:new(s)
+function textedit:new(s,default)
  local o=new_object(self,{
   editlen=8,
-  allowspace=true,
-  c=1
+  allowspace=true
  })
 
  o.s=s
+ o.default=default
  o.active=false
 
  o:home()
  
  return o
+end
+
+function textedit:value()
+ return (
+  #self.s!=0 and self.s
+  or self.default
+ )
 end
 
 function textedit:home()
@@ -2087,15 +2100,16 @@ function textedit:_modchar(to)
   from=nil
  end
 
+ --never allow space as 1st char
+ local allowspace=(
+  self.allowspace and self.xpos>1
+ )
+
  if to==⬆️ then
   if from==nil then
    to="a"
   elseif from=="z" then
-   if self.allowspace then
-    to=" "
-   else
-    to="a"
-   end
+   to=allowspace and " " or "a"
   else
    to=chr(ord(from)+1)
   end
@@ -2103,11 +2117,7 @@ function textedit:_modchar(to)
   if from==nil then
    to="z"
   elseif from=="a" then
-   if self.allowspace then
-    to=" "
-   else
-    to="z"
-   end
+   to=allowspace and " " or "z"
   else
    to=chr(ord(from)-1)
   end
@@ -2126,7 +2136,7 @@ function textedit:_modchar(to)
  return snew
 end
 
-function textedit:draw(x,y)
+function textedit:draw(x,y,c)
  local s=self.s
  if self.active then
   local xchar=x+self.xpos*4-4
@@ -2138,7 +2148,7 @@ function textedit:draw(x,y)
     ch,
     xchar,y,
     self.scroll,
-    self.c
+    c
    )
    draw_scrolling_str(
     self.oldchar,
@@ -2146,27 +2156,24 @@ function textedit:draw(x,y)
     self.scroll-sgn(
      self.scroll
     )*6,
-    self.c
+    c
    )
   else
    print(
     self.blink<30 and "_" or ch,
-    xchar,y,self.c
+    xchar,y,c
    )
   end
   s=self:_modchar(" ")
+ else
+  s=self:value()
  end
- print(s,x,y,self.c)
+ print(s,x,y,c)
 end
 
 function textedit:update()
  local t=self
  local s=t.s
-
- --never allow space as 1st char
- local allowspace=(
-  t.allowspace and t.xpos>1
- )
 
  local max_xpos=t.max_xpos
  if not max_xpos then
@@ -2207,15 +2214,6 @@ function textedit:update()
  end
 
  t.s=s
-end
-
-function dummy_hof()
- local hof={}
- for i=1,#level_defs do
-  add(hof,{"-",999})
- end
- hof[1]={"erb",23}
- return hof
 end
 
 function received_hof(s)
@@ -2263,7 +2261,7 @@ function post_result(lvl)
  local s=(
   ""..lvl.idx..","
   ..lvl.mov_cnt..","
-  ..load_name()..","
+  .._mainmenu:plyr_name()..","
   ..short_mov_str(
    lvl.player.mov_history
   )
@@ -2287,7 +2285,6 @@ function gpio:new(callback)
  o.txt_in=""
  poke(gpio_a_read,0)
  poke(gpio_a_write,255)
- printh("p8: enabling gpio")
 
  return o
 end
@@ -2305,7 +2302,7 @@ function gpio:_write()
   poke(gpio_a_write,128)
   deli(self.txt_out,1)
  else
-  local n=max(#s,gpio_blksize)
+  local n=min(#s,gpio_blksize)
   for i=1,n do
    poke(
     gpio_a_write+i,ord(s[i])
@@ -2348,14 +2345,14 @@ function gpio:update()
  end
 end
 __gfx__
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000cd000003ccc0000999900000000000000000000000000
-0000000000000000000000000000000000000000000000000000000000000000000000000000000000cddd0003ccccc009aa9990000600000000030008000800
-007007008877887700000000000000000000000000000000000000000000000000000000000000000cddddd0333ccccc9a7aa994000660000000330000808000
-00077000887788770000000000000000000000000000000000000000000000000000000000000000cddddddd333ccc3c9aaaa994066666000303300000080000
-000770000000000000000000000000000000000000000000000000000000000000000000000000000cddddd0c3cc3ccc99aa9994000660000333000000808000
-007007000000000000000000000000000000000000000000000000000000000000000000000000000cddddd0ccc333cc99999944000600000030000008000800
-000000000000000000000000000000000000000000000000000000000000000000000000000000000cddddd00cc33cc009999440000000000000000000000000
-000000000000000000000000000000000000000000000000000000000000000000000000000000000cddddd000cccc0000444400000000000000000000000000
+00000000000000000000000000000000000000000000000000000000000000000000000000000000000cc000003ccc0000999900000000000000000000000000
+0000000000000000000000000000000000000000000000000000000000000000000000000000000000cccc0003ccccc009aa9990000600000000030008000800
+007007008877887700000000000000000000000000000000000000000000000000000000000000000cccccc0333ccccc9a7aa994000660000000330000808000
+00077000887788770000000000000000000000000000000000000000000000000000000000000000cccccccc333ccc3c9aaaa994066666000303300000080000
+000770000000000000000000000000000000000000000000000000000000000000000000000000000dddddd0c3cc3ccc99aa9994000660000333000000808000
+007007000000000000000000000000000000000000000000000000000000000000000000000000000d00d0d0ccc333cc99999944000600000030000008000800
+000000000000000000000000000000000000000000000000000000000000000000000000000000000d00d0d00cc33cc009999440000000000000000000000000
+000000000000000000000000000000000000000000000000000000000000000000000000000000000d00ddd000cccc0000444400000000000000000000000000
 ffffff6666ffffff5555555f0000000000000000000000000000000006555555555555f006555555555555f00077770000077000007777000077770000770770
 fffff655555fffff5555555f0000000000066666666660000000000006555555555555f666555555555555f00766666000766500076666600766666000765665
 ffff65555555ffff555555f000000000066555555555555000000000065555555555555555555555555555f00765566500666500005556650765566507655665
