@@ -476,6 +476,7 @@ function animate_level_done(
   level_done_anim,
   lvl
  )
+
  return anim
 end
 
@@ -1016,7 +1017,7 @@ function player:new(x,y,bubble)
  o.rot=180
  o.tgt_rot=nil
  o.undo_stack=undo_stack:new(8)
- o.mov_history=""
+ o.mov_history={}
 
  return o
 end
@@ -1246,7 +1247,14 @@ function player:_start_move(
  if mov.blocked==0 then
   if lvl.mov_cnt<999 then
    lvl.mov_cnt+=1
-   self.mov_history..=mov.button
+   if lvl.mov_cnt<480 then
+    --limit move history, as
+    --only short solves are
+    --relevant
+    add(
+     self.mov_history,mov.button
+    )
+   end
   end
   if easymode then
    self.undo_stack:push(mov)
@@ -1277,11 +1285,12 @@ function player:_undo(lvl)
  self.sy=mov.src_y*ss
  self.rot=mov.ini_rot
  self.bubble=mov.ini_bubble
- self.mov_history=sub(
-  self.mov_history,0,
-  #self.mov_history-1
- )
  lvl.mov_cnt-=1
+ if (
+  lvl.mov_cnt<#self.mov_history
+ ) then
+  deli(self.mov_history)
+ end
  if mov.push_box then
   mov.push_box.sx=mov.dst_x*ss
   mov.push_box.sy=mov.dst_y*ss
@@ -1752,9 +1761,9 @@ function level:update()
    printh(
     "solved "..self.lvl_def.name
     .." in "..self.mov_cnt
-    .." moves\n"
-    ..self.player.mov_history
+    .." moves"
    )
+   post_result(self)
    anim=animate_level_done(self)
   end
  end
@@ -2201,10 +2210,48 @@ end
 function dummy_hof()
  local hof={}
  for i=1,#level_defs do
-  add(hof,{"---",999})
+  add(hof,{"-",999})
  end
  hof[1]={"erb",23}
  return hof
+end
+
+function short_mov_str(hist)
+ local mov=nil
+ local mov_cnt=0
+ local s=""
+ local append_move=function()
+  local moves="lrud"
+  s..=moves[mov+1]
+  if mov_cnt>1 then
+   s..=mov_cnt
+  end
+ end
+
+ for i=1,#hist do
+  if mov and mov!=hist[i] then
+   append_move()
+   mov_cnt=0
+  end
+  mov=hist[i]
+  mov_cnt+=1
+ end
+ append_move()
+
+ return s
+end
+
+function post_result(lvl)
+ local s=(
+  ""..lvl.idx..","
+  ..lvl.mov_cnt..","
+  ..load_name()..","
+  ..short_mov_str(
+   lvl.player.mov_history
+  )
+ )
+
+ printh(s)
 end
 __gfx__
 00000000000000000000000000000000000000000000000000000000000000000000000000000000000cd000003ccc0000999900000000000000000000000000
