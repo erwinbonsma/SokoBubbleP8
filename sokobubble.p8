@@ -1771,9 +1771,9 @@ function mainmenu:new()
 end
 
 function mainmenu:_change_option()
- if self.item_idx==2 then
+ if self.item_idx==4 then
   easymode=not easymode
- elseif self.item_idx==3 then
+ elseif self.item_idx==5 then
   music_on=not music_on
   if music_on then
    music(0)
@@ -1784,17 +1784,15 @@ function mainmenu:_change_option()
 end
 
 function mainmenu:update()
- local max_idx=(
-  _stats:all_solved() and 5 or 4
- )
+ local max_idx=6
 
  if btnp(❎) then
   if self.item_idx==1 then
    show_levelmenu()
    return
-  elseif self.item_idx==5 then
+  elseif self.item_idx==2 then
    show_stats(show_mainmenu)
-  elseif self.item_idx==4 then
+  elseif self.item_idx==3 then
    show_help()
   else
    self:_change_option()
@@ -1849,48 +1847,54 @@ end
 
 menu_items={
  "start",
- "mode [    ]",
- "music [   ]",
+ "hall of fame",
  "help",
- "stats"
+ "mode",
+ "music",
+ "name",
 }
 
 function mainmenu:_draw_menu()
- rect3d(35,56,91,96,1,13,2)
+ rect3d(30,56,97,104,1,13,2)
 
  local y=50+8*self.item_idx
  print(
-  "\^:0103070301000000",37,y,12
+  "\^:0103070301000000",32,y,12
  )
  print(
-  "\^:0406070604000000",87,y,12
+  "\^:0406070604000000",93,y,12
  )
+
+ local leftprint=function(s,y,c)
+  print(s,37,y,c)
+ end
 
  for i=1,#menu_items do
   local c=(
    self.item_idx==i and 12 or 13
   )
-  if (
-   i==5
-   and not _stats:all_solved()
-  ) then
-   c=0
-  end
-  centerprint(
+  local print_fn=(
+   i<=3 and centerprint or
+   leftprint
+  )
+  print_fn(
    menu_items[i],50+8*i,c
   )
  end
 
- print("[    ]",62,66,0)
+ rectfill(58,81,74,87,13)
  print(
   easymode and "easy" or "hard",
-  66,66,13
+  59,82,1
  )
  local s=(
   music_on and "on" or "off"
  )
- print("[   ]",66,74,0)
- print(s,76-#s*2,74,13)
+ rectfill(58,89,70,95,13)
+ print(s,65-#s*2,90,1)
+
+ rectfill(58,97,90,103,13)
+ print("name",59,98,1)
 end
 
 function mainmenu:draw()
