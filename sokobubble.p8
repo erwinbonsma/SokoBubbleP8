@@ -265,9 +265,9 @@ function bub_color(si)
  end
 end
 
-function new_object(class)
+function new_object(class,ini)
  local obj=setmetatable(
-  {},class
+  ini or {},class
  )
  class.__index=class
  return obj
@@ -325,6 +325,35 @@ end
 function centerprint(s,y,c)
  print(s,64-#s*2,y,c)
 end
+
+--draws a vertically scrolling
+--text. yoffset determines the
+--scroll amount, range=[-6,6]
+function draw_scrolling_str(
+ s,x,y,yoffset,c
+)
+ local px={}
+ for i=0,4 do
+  local yr=i+yoffset
+  if yr<-1 or yr>5 then
+   for j=0,#s*4 do
+    add(px,pget(x+j,y+yr))
+   end
+  end
+ end
+
+ print(s,x,y+yoffset,c)
+
+ for i=4,0,-1 do
+  local yr=i+yoffset
+  if yr<-1 or yr>5 then
+   for j=#s*4,0,-1 do
+    pset(x+j,y+yr,deli(px))
+   end
+  end
+ end
+end
+
 
 function printbig(s,x0,y0,c)
  print(s,x0,y0,c)
@@ -1766,6 +1795,9 @@ function mainmenu:new()
  local o=new_object(self)
 
  o.item_idx=1
+ o.name_edit=textedit:new(
+  "x"
+ )
 
  return o
 end
@@ -1780,6 +1812,11 @@ function mainmenu:_change_option()
   else
    music(-1)
   end
+ elseif self.item_idx==6 then
+  self.name_edit.active=(
+   not self.name_edit.active
+  )
+  self.name_edit:home()
  end
 end
 
@@ -1797,6 +1834,8 @@ function mainmenu:update()
   else
    self:_change_option()
   end
+ elseif self.name_edit.active then
+  self.name_edit:update()
  elseif btnp(⬆️) then
   self.item_idx=1+(
    self.item_idx+max_idx-2
@@ -1893,8 +1932,11 @@ function mainmenu:_draw_menu()
  rectfill(58,89,70,95,13)
  print(s,65-#s*2,90,1)
 
- rectfill(58,97,90,103,13)
- print("name",59,98,1)
+ rectfill(58,97,90,103,
+  self.name_edit.active
+  and 12 or 13
+ )
+ self.name_edit:draw(59,98)
 end
 
 function mainmenu:draw()
@@ -1945,6 +1987,158 @@ function game:update()
  end
 end
 -->8
+textedit={}
+function textedit:new(s)
+ local o=new_object(self,{
+  editlen=8,
+  allowspace=true,
+  c=1
+ })
+
+ o.s=s
+ o.active=false
+
+ o:home()
+ 
+ return o
+end
+
+function textedit:home()
+ self.xpos=1
+ self.blink=0
+end
+
+function textedit:_modchar(to)
+ local s=self.s
+ local from=sub(
+  s,self.xpos,self.xpos
+ )
+ if from<"a" or from>"z" then
+  from=nil
+ end
+
+ if to==⬆️ then
+  if from==nil then
+   to="a"
+  elseif from=="z" then
+   if self.allowspace then
+    to=" "
+   else
+    to="a"
+   end
+  else
+   to=chr(ord(from)+1)
+  end
+ elseif to==⬇️ then
+  if from==nil then
+   to="z"
+  elseif from=="a" then
+   if self.allowspace then
+    to=" "
+   else
+    to="z"
+   end
+  else
+   to=chr(ord(from)-1)
+  end
+ end
+
+ local snew=""
+ if self.xpos>1 then
+  snew=sub(s,1,self.xpos-1)
+ end
+ if self.xpos<#s or to!=" " then
+  snew..=to
+ end
+ if self.xpos<#s then
+  snew..=sub(s,self.xpos+1)
+ end
+ return snew
+end
+
+function textedit:draw(x,y)
+ local s=self.s
+ if self.active then
+  local xchar=x+self.xpos*4-4
+  local ch=sub(
+   s,self.xpos,self.xpos
+  )
+  if self.scroll then
+   draw_scrolling_str(
+    ch,
+    xchar,y,
+    self.scroll,
+    self.c
+   )
+   draw_scrolling_str(
+    self.oldchar,
+    xchar,y,
+    self.scroll-sgn(
+     self.scroll
+    )*6,
+    self.c
+   )
+  else
+   print(
+    self.blink<30 and "_" or ch,
+    xchar,y,self.c
+   )
+  end
+  s=self:_modchar(" ")
+ end
+ print(s,x,y,self.c)
+end
+
+function textedit:update()
+ local t=self
+ local s=t.s
+
+ --never allow space as 1st char
+ local allowspace=(
+  t.allowspace and t.xpos>1
+ )
+
+ local max_xpos=t.max_xpos
+ if not max_xpos then
+  max_xpos=min(#s+1,t.editlen)
+ end
+
+ local ch=sub(s,t.xpos,t.xpos)
+ if btnp(➡️) then
+  t.xpos=t.xpos%max_xpos+1
+  t.blink=0
+ elseif btnp(⬅️) then
+  if t.xpos==#s and ch==" " then
+   s=sub(s,1,#s-1)
+  end
+  t.xpos=(
+   t.xpos+max_xpos-2
+  )%max_xpos+1
+  t.blink=0
+ elseif btnp(⬆️)
+ and t.xpos<=t.editlen then
+  t.oldchar=ch
+  s=self:_modchar(⬆️)
+  t.scroll=-6
+ elseif btnp(⬇️)
+ and t.xpos<=t.editlen then
+  t.oldchar=ch
+  s=self:_modchar(⬇️)
+  t.scroll=6
+ else
+  t.blink+=1
+  if t.blink>60 then
+   t.blink=0
+  end
+  if t.scroll then
+   t.scroll-=sgn(t.scroll)
+   if (t.scroll==0) t.scroll=nil
+  end
+ end
+
+ t.s=s
+end
+
 function dummy_hof()
  local hof={}
  for i=1,#level_defs do
