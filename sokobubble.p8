@@ -508,6 +508,50 @@ function animate_retry(
 end
 
 -->8
+function store_name(s)
+ --pad to ensure #s>=8
+ s..="        "
+
+ local s4_to_word=function(s)
+  local v=0
+  for i=1,4 do
+   v|=(ord(s,i)>>16)<<(i-1)*8
+  end
+  return v
+ end
+
+ dset(62,s4_to_word(sub(s,1,4)))
+ dset(63,s4_to_word(sub(s,5,8)))
+end
+
+function load_name(s)
+ local word_to_s4=function(v)
+  local s=""
+  for i=1,4 do
+   local ch=chr(
+    (v>>(i-1)*8)<<16
+   )
+   if (
+    (ch>="a" and ch<="z")
+    or ch==" "
+   ) then
+    s..=ch
+   end
+  end
+  return s
+ end
+
+ s=word_to_s4(dget(62))
+ s..=word_to_s4(dget(63))
+
+ --strip trailing space
+ while #s>0 and s[#s]==" " do
+  s=sub(s,1,#s-1)
+ end
+
+ return s
+end
+
 stats={}
 vmajor=0
 vminor=1
@@ -805,12 +849,14 @@ function statsview:draw()
  print("total",42,108,12)
  print("moves",42,115,12)
 
- spr(142,10,107,1,2)
- spr(143,30,107,1,2)
- spr(
-  self.global and 11 or 10,
-  20,110
- )
+ if hof then
+  spr(142,10,107,1,2)
+  spr(143,30,107,1,2)
+  spr(
+   self.global and 11 or 10,
+   20,110
+  )
+ end
 end
 
 helpview={}
@@ -1720,13 +1766,15 @@ end
 --main
 
 function _init()
- _mainmenu=mainmenu:new()
  _stats=stats:new()
+
+ hof=dummy_hof()
+
+ _mainmenu=mainmenu:new()
  _levelmenu=levelmenu:new()
  _statsview=statsview:new()
  _helpview=helpview:new()
 
- hof=dummy_hof()
  hof_total=0
  for k,v in pairs(hof) do
   hof_total+=v[2]
@@ -1796,8 +1844,11 @@ function mainmenu:new()
 
  o.item_idx=1
  o.name_edit=textedit:new(
-  "x"
+  hof
+  and load_name()
+  or "--------"
  )
+ o.name_edit.c=hof and 1 or 0
 
  return o
 end
@@ -1816,12 +1867,16 @@ function mainmenu:_change_option()
   self.name_edit.active=(
    not self.name_edit.active
   )
-  self.name_edit:home()
+  if self.name_edit.active then
+   self.name_edit:home()
+  else
+   store_name(self.name_edit.s)
+  end
  end
 end
 
 function mainmenu:update()
- local max_idx=6
+ local max_idx=hof and 6 or 5
 
  if btnp(❎) then
   if self.item_idx==1 then
@@ -1912,6 +1967,9 @@ function mainmenu:_draw_menu()
   local c=(
    self.item_idx==i and 12 or 13
   )
+  if i==6 and not hof then
+   c=0
+  end
   local print_fn=(
    i<=3 and centerprint or
    leftprint
@@ -1932,10 +1990,11 @@ function mainmenu:_draw_menu()
  rectfill(58,89,70,95,13)
  print(s,65-#s*2,90,1)
 
- rectfill(58,97,90,103,
+ c=(
   self.name_edit.active
   and 12 or 13
  )
+ rectfill(58,97,90,103,c)
  self.name_edit:draw(59,98)
 end
 
