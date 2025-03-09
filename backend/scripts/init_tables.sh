@@ -15,5 +15,5 @@ ${DYNAMODB_CMD} create-table \
 
 echo "Done"
 
-# Sleep so that container can be used to interactively inspect tables
-sleep 2147483647
+## Sleep so that container can be used to interactively inspect tables
+#sleep 2147483647

@@ -32,14 +32,19 @@ services:
       context: .
       dockerfile: Dockerfile
     volumes:
-      - ./src:/usr/backend/src
+      - .:/usr/backend
     tty: true
     ports:
-      - 8765:8765
+      - 8080:5000
     depends_on:
-      - dynamodb
+      dynamodb:
+        condition: service_started
+      dynamodb-setup:
+        condition: service_completed_successfully
     environment:
       AWS_ACCESS_KEY_ID: "fakeMyKeyId"
       AWS_SECRET_ACCESS_KEY: "fakeSecretAccessKey"
       AWS_DEFAULT_REGION: "fakeRegion"
       DYNAMODB_ENDPOINT: "http://dynamodb:8000"
+      FLASK_APP: "LocalGateway.py"
+    # command: tail -f /dev/null

@@ -2,6 +2,12 @@ FROM python:3
 
 WORKDIR /usr/backend/src
 
-RUN pip install --no-cache-dir python-lambda-local boto3 setuptools
+RUN pip install --no-cache-dir \
+    boto3 \
+    flask \
+    python-lambda-local \
+    setuptools
 
-CMD [ "bash" ]
+#CMD [ "bash" ]
+ENTRYPOINT [ "/usr/backend/scripts/entrypoint.sh" ]
+CMD [ "flask", "run", "--host", "0.0.0.0" ]

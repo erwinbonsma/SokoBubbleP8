@@ -1,0 +1,26 @@
+GET http://127.0.0.1:8080/hall_of_fame HTTP/1.1
+content-type: application/json
+
+###
+
+PUT http://127.0.0.1:8080/level_completion HTTP/1.1
+content-type: application/json
+
+{
+    "player": "alice",
+    "level": 1,
+    "moveCount": 27,
+    "moveHistory": "u2rld4r3l3u4r2d2u2r2d"
+}
+
+###
+
+PUT http://127.0.0.1:8080/level_completion HTTP/1.1
+content-type: application/json
+
+{
+    "player": "bob",
+    "level": 1,
+    "moveCount": 23,
+    "moveHistory": "u2r2d2u2r2dul4d4r3"
+}
