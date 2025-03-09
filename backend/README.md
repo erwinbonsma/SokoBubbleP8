@@ -33,10 +33,17 @@ PUT level_completion
 
 # Testing
 
+Initialize Hall of Fame:
 ```
-python-lambda-local -f handle_populate_hof_table InitTable.py inputs/populate-hof.json
+python-lambda-local -f handle_populate_hof_table InitTable.py inputs/empty.json
 ```
 
+Retrieve Hall of Fame:
+```
+python-lambda-local -f handle_hall_of_fame_get HallOfFameService.py inputs/empty.json
+```
+
+Log level completion (and optionally update Hall of Fame):
 ```
 python-lambda-local -f handle_level_completion_put LevelCompletionService.py inputs/level-completion-level1-moves23.json
 ```

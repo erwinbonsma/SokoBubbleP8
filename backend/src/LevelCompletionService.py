@@ -23,8 +23,8 @@ def handle_level_completion_put(event, context):
     try:
         player = request_json["player"]
         level = request_json["level"]
-        move_count = request_json["move_count"]
-        move_history = request_json["move_history"]
+        move_count = request_json["moveCount"]
+        move_history = request_json["moveHistory"]
     except KeyError as e:
         return bad_request(str(e))
 
