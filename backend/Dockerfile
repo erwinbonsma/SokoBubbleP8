@@ -5,6 +5,7 @@ WORKDIR /usr/backend/src
 RUN pip install --no-cache-dir \
     boto3 \
     flask \
+    flask-cors \
     python-lambda-local \
     setuptools
 

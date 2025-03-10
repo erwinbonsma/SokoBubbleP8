@@ -1,18 +1,13 @@
+const baseAddress = "http://127.0.0.1:8080";
+
 const gpioReadAddress = 0;
 const gpioWriteAddress = 64;
 const gpioBlockSize = 63;
 
-function makeHOFString(hof) {
-    return hof.map(v => v.join()).join();
-}
-
 var sokobubbleHOF = Array(24).fill(null).map(_ => ["-", 999]);
-sokobubbleHOF[0] = ["bob", 18];
-sokobubbleHOF[1] = ["alice", 30];
-
 var gpioConnected = false;
 var gpioTxtIn = "";
-var gpioTxtOut = makeHOFString(sokobubbleHOF);
+var gpioTxtOut = undefined;
 
 function updateHOF(levelIdx, numMoves, playerName) {
     const levelEntry = sokobubbleHOF[levelIdx - 1];
@@ -79,4 +74,23 @@ function gpioUpdate() {
     }
 }
 
+function makeHOFString(hof) {
+    return hof.map(v => v.join()).join();
+}
+
+async function fetchHallOfFame() {
+    const response = await fetch(`${baseAddress}/hall_of_fame`);
+    const responseJson = await response.json(); //extract JSON from the http response
+    const body = JSON.parse(responseJson.body);
+
+    for (let [index, entry] of body.hallOfFame.entries()) {
+        sokobubbleHOF[index] = [entry.player, entry.moveCount];
+    }
+
+    gpioTxtOut = makeHOFString(sokobubbleHOF);
+    console.info(`Fetched Hall of Fame: ${gpioTxtOut}`);
+}
+
 window.setInterval(gpioUpdate, 100);
+
+fetchHallOfFame();

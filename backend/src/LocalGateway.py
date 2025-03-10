@@ -1,10 +1,12 @@
 from flask import Flask, request
+from flask_cors import CORS
 import json
 
 from HallOfFameService import handle_hall_of_fame_get
 from LevelCompletionService import handle_level_completion_put
 
 app = Flask(__name__)
+CORS(app)
 
 
 @app.route('/hall_of_fame', methods=['GET'])
