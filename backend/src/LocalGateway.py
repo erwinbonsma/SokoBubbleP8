@@ -3,7 +3,7 @@ from flask_cors import CORS
 import json
 
 from HallOfFameService import handle_hall_of_fame_get
-from LevelCompletionService import handle_level_completion_put
+from LevelCompletionService import handle_level_completion_post
 
 app = Flask(__name__)
 CORS(app)
@@ -14,13 +14,16 @@ def get_hall_of_fame():
     return handle_hall_of_fame_get(None, None)
 
 
-@app.route('/level_completion', methods=['PUT'])
-def put_level_completion():
+@app.route('/level_completion', methods=['POST'])
+def post_level_completion():
     print(request)
     print(request.json)
-    return handle_level_completion_put({
-        "body": json.dumps(request.json)
-    }, None)
+    try:
+        return handle_level_completion_post({
+            "body": json.dumps(request.json)
+        }, None)
+    except Exception as e:
+        print("Error", e)
 
 
 # if __name__ == '__main__':

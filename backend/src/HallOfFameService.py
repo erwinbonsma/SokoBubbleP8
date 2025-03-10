@@ -27,11 +27,11 @@ def handle_hall_of_fame_get(event, context):
         return server_error(str(e))
 
     return request_handled({
-        "hallOfFame": [
-            {
+        "hallOfFame": {
+            int(item["SKEY"]["S"][6:]): {
                 "player": item["Player"]["S"],
                 "moveCount": int(item["MoveCount"]["N"])
             }
             for item in response["Items"]
-        ]
+        }
     })

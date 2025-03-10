@@ -15,7 +15,7 @@ table_name = f"Sokobubble-{stage}"
 logger = logging.getLogger(__name__)
 
 
-def handle_level_completion_put(event, context):
+def handle_level_completion_post(event, context):
     logger.info(f"{event=}")
 
     request_json = json.loads(event["body"])
@@ -84,7 +84,7 @@ def handle_level_completion_put(event, context):
             return server_error(str(e))
 
     return request_handled({
-        "level": level,
+        "level": int(level),
         "player": item["Player"]["S"],
         "moveCount": int(item["MoveCount"]["N"]),
         "improved": improved
