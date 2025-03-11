@@ -1,4 +1,4 @@
-from flask import Flask, request
+from flask import Flask, request, Response
 from flask.logging import default_handler
 from flask_cors import CORS
 
@@ -17,11 +17,19 @@ for logger_name in [app.name, "HallOfFameService", "LevelCompletionService"]:
     logger.addHandler(default_handler)
 
 
+def convert_response(response):
+    return Response(
+        response["body"],
+        status=response["statusCode"],
+        mimetype=response["headers"]["Content-Type"]
+    )
+
+
 @app.route('/hall_of_fame', methods=['GET'])
 def get_hall_of_fame():
-    return handle_hall_of_fame_get({
+    return convert_response(handle_hall_of_fame_get({
         "queryStringParameters": request.args
-    }, None)
+    }, None))
 
 
 @app.route('/level_completion', methods=['POST'])
@@ -29,9 +37,9 @@ def post_level_completion():
     print(request)
     print(request.json)
     try:
-        return handle_level_completion_post({
+        return convert_response(handle_level_completion_post({
             "body": json.dumps(request.json)
-        }, None)
+        }, None))
     except Exception as e:
         print("Error", e)
 
