@@ -86,7 +86,6 @@ def try_update_hof_entry(
         logger.info(f"Improved hi-score")
         item["Improved"] = True
     except ClientError as e:
-        logger.info(e.response)
         if e.response['Error']['Code'] == "ConditionalCheckFailedException":
             if "Item" in e.response:
                 logger.info("Did not improve existing entry")
@@ -97,6 +96,7 @@ def try_update_hof_entry(
                 item = put_hof_entry(table_id, time_stamp, player, level, move_count)
                 item["Improved"] = True
         else:
+            logger.error("Failed to update hi-score:", e)
             raise
 
     logger.info(f"Hi-score improved = {item['Improved']}")
@@ -104,8 +104,6 @@ def try_update_hof_entry(
 
 
 def handle_level_completion_post(event, context):
-    logger.info(f"{event=}")
-
     request_json = json.loads(event["body"])
     time_stamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     try:
@@ -168,4 +166,12 @@ def handle_level_completion_post(event, context):
     })
 
 
-logging.getLogger().setLevel(logging.INFO)
+def handler(event, context):
+    method = event["requestContext"]["http"]["method"]
+    if method == "POST":
+        return handle_level_completion_post(event, context)
+    elif method == "OPTIONS":
+        return request_handled()
+
+    logger.error(f"Unsupported event: {event}")
+    return bad_request()

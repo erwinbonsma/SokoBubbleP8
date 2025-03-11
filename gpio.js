@@ -1,5 +1,15 @@
 const baseAddress = "http://127.0.0.1:8080";
 
+// Local deployment
+// const hofServiceUrl = `${baseAddress}/hall_of_fame`;
+// const logCompletionUrl = `${baseAddress}/level_completion`;
+
+// Cloud deployment
+const hofServiceUrl = "https://5acun5rqdkalcagdfpldl47aki0xkwwe.lambda-url.eu-west-1.on.aws/";
+const logCompletionUrl = "https://roe3f4jh6uab4rnvjzr7ajap2a0fjhxr.lambda-url.eu-west-1.on.aws/";
+
+const tableId = "test";
+
 const gpioReadAddress = 0;
 const gpioWriteAddress = 64;
 const gpioBlockSize = 63;
@@ -24,9 +34,9 @@ function updateHOF(levelIdx, numMoves, playerName) {
 }
 
 async function logLevelCompletion(level, moveCount, player, moveHistory) {
-    const response = await fetch(`${baseAddress}/level_completion`, {
+    const response = await fetch(logCompletionUrl, {
         method: 'POST',
-        body: JSON.stringify({ level, player, moveCount, moveHistory }),
+        body: JSON.stringify({ level, player, moveCount, moveHistory, tableId }),
         headers: {
           'Content-Type': 'application/json'
         }
@@ -41,11 +51,10 @@ async function logLevelCompletion(level, moveCount, player, moveHistory) {
     }
 
     const responseJson = await response.json(); //extract JSON from the http response
-    const body = JSON.parse(responseJson.body);
 
     const levelEntry = sokobubbleHOF[level - 1];
-    levelEntry[0] = body.player;
-    levelEntry[1] = body.moveCount;
+    levelEntry[0] = responseJson.player;
+    levelEntry[1] = responseJson.moveCount;
 
     if (gpioTxtOut !== undefined) {
         console.warn("Cannot send response via GPIO")
@@ -70,7 +79,7 @@ function gpioRead() {
             const [levelIdx, numMoves, playerName, moves] = args;
 
             // Fire and forget. Do not wait inside this GPIO handler
-            logLevelCompletion(levelIdx, numMoves, playerName, moves);
+            logLevelCompletion(parseInt(levelIdx), parseInt(numMoves), playerName, moves);
         }
 
         gpioTxtIn = "";
@@ -114,14 +123,15 @@ function makeHOFString(hof) {
 }
 
 async function fetchHallOfFame() {
-    const response = await fetch(`${baseAddress}/hall_of_fame`);
+    const response = await fetch(hofServiceUrl);
     const responseJson = await response.json(); //extract JSON from the http response
-    const body = JSON.parse(responseJson.body);
-    const hof = body.hallOfFame;
+    const hof = responseJson.hallOfFame;
 
     for (let i = 0; i < hofSize; i++) {
         const entry = hof[(i + 1).toString()];
-        sokobubbleHOF[i] = [entry.player, entry.moveCount];
+        if (entry !== undefined) {
+            sokobubbleHOF[i] = [entry.player, entry.moveCount];
+        }
     }
 
     gpioTxtOut = makeHOFString(sokobubbleHOF);

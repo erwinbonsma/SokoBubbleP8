@@ -4,7 +4,7 @@ import os
 import boto3
 from botocore.exceptions import ClientError
 
-from common import request_handled, server_error, DEFAULT_TABLE_ID
+from common import bad_request, request_handled, server_error, DEFAULT_TABLE_ID
 
 STAGE = os.environ.get("STAGE", "dev")
 TABLE_NAME = f"Sokobubble-{STAGE}"
@@ -38,3 +38,14 @@ def handle_hall_of_fame_get(event, context):
             for item in response["Items"]
         }
     })
+
+
+def handler(event, context):
+    method = event["requestContext"]["http"]["method"]
+    if method == "GET":
+        return handle_hall_of_fame_get(event, context)
+    elif method == "OPTIONS":
+        return request_handled()
+
+    logger.error(f"Unsupported event: {event}")
+    return bad_request()

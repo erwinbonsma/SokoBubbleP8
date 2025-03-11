@@ -1,16 +1,16 @@
 ### Get default (global) Hall of Fame
 
-GET http://127.0.0.1:8080/hall_of_fame HTTP/1.1
+GET {{hall_of_fame_url}} HTTP/1.1
 content-type: application/json
 
 ### Get custom Hall of Fame
 
-GET http://127.0.0.1:8080/hall_of_fame?id=custom HTTP/1.1
+GET {{hall_of_fame_url}}?id=custom HTTP/1.1
 content-type: application/json
 
 ### Sub-optimal global entry for Level 1
 
-POST http://127.0.0.1:8080/level_completion HTTP/1.1
+POST {{level_completion_url}} HTTP/1.1
 content-type: application/json
 
 {
@@ -22,7 +22,7 @@ content-type: application/json
 
 ### Optimal global entry for Level 1
 
-POST http://127.0.0.1:8080/level_completion HTTP/1.1
+POST {{level_completion_url}} HTTP/1.1
 content-type: application/json
 
 {
@@ -34,7 +34,7 @@ content-type: application/json
 
 ### Sub-optimal custom entry for Level 2
 
-POST http://127.0.0.1:8080/level_completion HTTP/1.1
+POST {{level_completion_url}} HTTP/1.1
 content-type: application/json
 
 {
