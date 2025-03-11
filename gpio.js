@@ -1,6 +1,5 @@
-const baseAddress = "http://127.0.0.1:8080";
-
 // Local deployment
+// const baseAddress = "http://127.0.0.1:8080";
 // const hofServiceUrl = `${baseAddress}/hall_of_fame`;
 // const logCompletionUrl = `${baseAddress}/level_completion`;
 
@@ -8,7 +7,7 @@ const baseAddress = "http://127.0.0.1:8080";
 const hofServiceUrl = "https://5acun5rqdkalcagdfpldl47aki0xkwwe.lambda-url.eu-west-1.on.aws/";
 const logCompletionUrl = "https://roe3f4jh6uab4rnvjzr7ajap2a0fjhxr.lambda-url.eu-west-1.on.aws/";
 
-const tableId = "test";
+const tableId = "live-01";
 
 const gpioReadAddress = 0;
 const gpioWriteAddress = 64;
@@ -19,6 +18,10 @@ var sokobubbleHOF = Array(hofSize).fill(null).map(_ => ["-", 999]);
 var gpioConnected = false;
 var gpioTxtIn = "";
 var gpioTxtOut = undefined;
+
+function sleep(timeMs) {
+    return new Promise((resolve) => setTimeout(resolve, timeMs));
+}
 
 function updateHtmlTablePartial(hof, minLevel, maxLevel, elementId) {
     var s = '<table class="hof-table">';
@@ -41,20 +44,36 @@ function updateHtmlTable(hof) {
 }
 
 async function logLevelCompletion(level, moveCount, player, moveHistory) {
-    const response = await fetch(logCompletionUrl, {
-        method: 'POST',
-        body: JSON.stringify({ level, player, moveCount, moveHistory, tableId }),
-        headers: {
-          'Content-Type': 'application/json'
+    var attempt = 0;
+    var ok = false;
+    var response;
+    while (!ok) {
+        console.info("Posting level completion");
+        response = await fetch(logCompletionUrl, {
+            method: 'POST',
+            body: JSON.stringify({ level, player, moveCount, moveHistory, tableId }),
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        });
+        attempt += 1;
+        if (response.ok && response.status === 200) {
+            ok = true;
+        } else if (response.status === 503) {
+            console.warn("Service (temporarily unavailable");
+
+            if (attempt <= 3) {
+                const sleepTime = Math.ceil(Math.pow(3, attempt) + Math.random() * 3) * 1000;
+                console.info(`Retrying after wait of ${sleepTime}ms`);
+                await sleep(sleepTime);
+            } else {
+                console.info("Giving up");
+                return
+            }
+        } else {
+            console.warn(`Unexpected status: ${response.status}`);
+            return
         }
-      });
-    if (!response.ok || response.status != 200) {
-        console.warn("Failed to post level completion");
-        console.info(response);
-
-        // TODO: Add retry with back-off incase of status 503
-
-        return
     }
 
     const responseJson = await response.json(); //extract JSON from the http response
