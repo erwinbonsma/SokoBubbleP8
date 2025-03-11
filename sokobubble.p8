@@ -1830,7 +1830,8 @@ function start_level(
 end
 
 function show_levelmenu()
- menuitem(1,"main menu",
+ menuitem(1)
+ menuitem(2,"main menu",
   show_mainmenu
  )
  scene=_levelmenu
@@ -1838,6 +1839,7 @@ end
 
 function show_mainmenu()
  menuitem(1)
+ menuitem(2)
  scene=_mainmenu
 end
 
