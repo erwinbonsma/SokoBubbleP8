@@ -20,17 +20,24 @@ var gpioConnected = false;
 var gpioTxtIn = "";
 var gpioTxtOut = undefined;
 
-function updateHOF(levelIdx, numMoves, playerName) {
-    const levelEntry = sokobubbleHOF[levelIdx - 1];
-    if (numMoves >= levelEntry[1]) return;
-
-    // Improved score
-    levelEntry[0] = playerName;
-    levelEntry[1] = numMoves;
-
-    if (gpioTxtOut === undefined) {
-        gpioTxtOut = makeHOFString(sokobubbleHOF);
+function updateHtmlTablePartial(hof, minLevel, maxLevel, elementId) {
+    var s = '<table class="hof-table">';
+    for (let i = minLevel; i <= maxLevel; i++) {
+        const [player, score] = hof[i - 1];
+        s += '<tr class="hof-entry">'
+            + `<td class="hof-level">${i}.</td>`
+            + `<td class="hof-player">${player}</td>`
+            + `<td class="hof-score">${score}</td>`
+            + '</tr>';
     }
+    s += "</table>"
+
+    document.getElementById(elementId).innerHTML = s;
+}
+
+function updateHtmlTable(hof) {
+    updateHtmlTablePartial(hof, 1, 12, "HallOfFame-Left");
+    updateHtmlTablePartial(hof, 13, 24, "HallOfFame-Right");
 }
 
 async function logLevelCompletion(level, moveCount, player, moveHistory) {
@@ -62,6 +69,8 @@ async function logLevelCompletion(level, moveCount, player, moveHistory) {
         // Return (possibly updated) Hall of Fame
         gpioTxtOut = makeHOFString(sokobubbleHOF);
     }
+
+    updateHtmlTable(sokobubbleHOF);
 }
 
 function gpioRead() {
@@ -136,6 +145,8 @@ async function fetchHallOfFame() {
 
     gpioTxtOut = makeHOFString(sokobubbleHOF);
     console.info(`Fetched Hall of Fame: ${gpioTxtOut}`);
+
+    updateHtmlTable(sokobubbleHOF);
 }
 
 window.setInterval(gpioUpdate, 100);
