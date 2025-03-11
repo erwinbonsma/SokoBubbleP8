@@ -8,10 +8,14 @@ from botocore.exceptions import ClientError
 
 from common import bad_request, request_handled, server_error, service_unavailable
 
-stage = os.environ.get("STAGE", "dev")
-client = boto3.client("dynamodb", endpoint_url=os.environ.get("DYNAMODB_ENDPOINT"))
-table_name = f"Sokobubble-{stage}"
+NUM_LEVELS = 24
+MIN_MOVE_COUNT = 20
+MAX_MOVE_COUNT = 999
 
+STAGE = os.environ.get("STAGE", "dev")
+TABLE_NAME = f"Sokobubble-{STAGE}"
+
+client = boto3.client("dynamodb", endpoint_url=os.environ.get("DYNAMODB_ENDPOINT"))
 logger = logging.getLogger(__name__)
 
 
@@ -28,9 +32,17 @@ def handle_level_completion_post(event, context):
     except KeyError as e:
         return bad_request(str(e))
 
+    if (
+        len(player) > 8
+        or (level < 1 or level > NUM_LEVELS)
+        or (move_count < MIN_MOVE_COUNT or move_count > MAX_MOVE_COUNT)
+        or len(move_history) > move_count
+    ):
+        return bad_request()
+
     try:
         response = client.put_item(
-            TableName=table_name,
+            TableName=TABLE_NAME,
             Item={
                 "PKEY": {"S": "Log"},
                 "SKEY": {"S": f"EntryTime={time_stamp}"},
@@ -53,7 +65,7 @@ def handle_level_completion_post(event, context):
     improved = False
     try:
         response = client.update_item(
-            TableName=table_name,
+            TableName=TABLE_NAME,
             Key={
                 "PKEY": {"S": "HallOfFame"},
                 "SKEY": {"S": f"Level={level}"},
