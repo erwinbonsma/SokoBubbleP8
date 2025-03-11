@@ -1793,10 +1793,6 @@ function _init()
  _helpview=helpview:new()
  _gpio=gpio:new(received_hof)
 
- --disable btnp auto-repeat
- --to use custom hold logic
- poke(0x5f5c,255)
-
  music(0)
 
  show_mainmenu()
@@ -1819,6 +1815,7 @@ function start_level(
  _game.anim=animate_level_start(
   _game.level,old_lvl
  )
+
  menuitem(1,"level menu",
   function()
    _game.anim=animate_retry(
@@ -1826,6 +1823,11 @@ function start_level(
    )
   end
  )
+
+ --disable btnp auto-repeat
+ --to use custom hold logic
+ poke(0x5f5c,255)
+
  scene=_game
 end
 
@@ -1834,23 +1836,32 @@ function show_levelmenu()
  menuitem(2,"main menu",
   show_mainmenu
  )
+
  scene=_levelmenu
 end
 
 function show_mainmenu()
  menuitem(1)
  menuitem(2)
+
+ --enable default button hold
+ --(for editing name)
+ poke(0x5f5c,0)
+
  scene=_mainmenu
 end
 
 function show_stats(cb)
  menuitem(1)
+
  _statsview.hide_callback=cb
+
  scene=_statsview
 end
 
 function show_help()
  menuitem(1)
+
  scene=_helpview
 end
 
