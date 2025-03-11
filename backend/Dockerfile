@@ -10,5 +10,4 @@ RUN pip install --no-cache-dir \
     setuptools
 
 #CMD [ "bash" ]
-ENTRYPOINT [ "/usr/backend/scripts/entrypoint.sh" ]
 CMD [ "flask", "run", "--host", "0.0.0.0", "--debug" ]

@@ -4,22 +4,25 @@ import os
 import boto3
 from botocore.exceptions import ClientError
 
-from common import request_handled, server_error
+from common import request_handled, server_error, DEFAULT_TABLE_ID
 
-stage = os.environ.get("STAGE", "dev")
+STAGE = os.environ.get("STAGE", "dev")
+TABLE_NAME = f"Sokobubble-{STAGE}"
+
 client = boto3.client("dynamodb", endpoint_url=os.environ.get("DYNAMODB_ENDPOINT"))
-table_name = f"Sokobubble-{stage}"
-
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 
 
 def handle_hall_of_fame_get(event, context):
+    id = event.get("queryStringParameters", {}).get("id", DEFAULT_TABLE_ID)
+    logger.info(f"Request for Hall of Fame {id=}")
+
     try:
         response = client.query(
-            TableName=table_name,
+            TableName=TABLE_NAME,
             KeyConditionExpression="PKEY = :pkey",
-            ExpressionAttributeValues={":pkey": {"S": "HallOfFame"}}
+            ExpressionAttributeValues={":pkey": {"S": f"HallOfFame#{id}"}}
         )
         logger.info(f"{response=}")
     except ClientError as e:

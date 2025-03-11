@@ -1,5 +1,7 @@
 import json
 
+DEFAULT_TABLE_ID = "global"
+
 
 def lambda_responder(body, status_code):
     return {

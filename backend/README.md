@@ -13,7 +13,7 @@ Level Completion Logs
     - E.g. "u2d3l2u2r2d3u3r2d2"
 
 Level Hi-score
-- PKEY = "HallOfFame"
+- PKEY = "HallOfFame#{id}"
 - SKEY = "Level={index}"
 - Player = "{playername}"
 - MoveCount
@@ -21,29 +21,26 @@ Level Hi-score
 
 # REST API
 
-GET hall_of_fame
+GET hall_of_fame[?id={id}]
 - Returns hi-score for each level
+- The optional id selects the table. Defaults to "global"
 
 PUT level_completion
 - Adds to log
     - Returns 503 (Service Unavailable) when log entry is already there
+    - This is a simple DDOS protection mechanism
 - Optionally: Verifies that move history is valid
 - Conditionally updates Hi-score (on score being lower)
 - Returns hi-score entry for level
 
 # Testing
 
-Initialize Hall of Fame:
-```
-python-lambda-local -f handle_populate_hof_table InitTable.py inputs/empty.json
-```
-
 Retrieve Hall of Fame:
 ```
-python-lambda-local -f handle_hall_of_fame_get HallOfFameService.py inputs/empty.json
+python-lambda-local -f handle_hall_of_fame_get HallOfFameService.py ../json/empty.json
 ```
 
 Log level completion (and optionally update Hall of Fame):
 ```
-python-lambda-local -f handle_level_completion_put LevelCompletionService.py inputs/level-completion-level1-moves23.json
+python-lambda-local -f handle_level_completion_post LevelCompletionService.py ../json/level-completion-level1-moves23.json
 ```

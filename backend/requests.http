@@ -1,7 +1,14 @@
+### Get default (global) Hall of Fame
+
 GET http://127.0.0.1:8080/hall_of_fame HTTP/1.1
 content-type: application/json
 
-###
+### Get custom Hall of Fame
+
+GET http://127.0.0.1:8080/hall_of_fame?id=custom HTTP/1.1
+content-type: application/json
+
+### Sub-optimal global entry for Level 1
 
 POST http://127.0.0.1:8080/level_completion HTTP/1.1
 content-type: application/json
@@ -13,7 +20,7 @@ content-type: application/json
     "moveHistory": "u2rld4r3l3u4r2d2u2r2d"
 }
 
-###
+### Optimal global entry for Level 1
 
 POST http://127.0.0.1:8080/level_completion HTTP/1.1
 content-type: application/json
@@ -23,4 +30,17 @@ content-type: application/json
     "level": 1,
     "moveCount": 23,
     "moveHistory": "u2r2d2u2r2dul4d4r3"
+}
+
+### Sub-optimal custom entry for Level 2
+
+POST http://127.0.0.1:8080/level_completion HTTP/1.1
+content-type: application/json
+
+{
+    "player": "alice",
+    "level": 2,
+    "moveCount": 27,
+    "moveHistory": "u2d4u3r2d2l3ru3d3l2u2",
+    "tableId": "custom"
 }

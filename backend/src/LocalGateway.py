@@ -1,17 +1,27 @@
 from flask import Flask, request
+from flask.logging import default_handler
 from flask_cors import CORS
+
 import json
+import logging
 
 from HallOfFameService import handle_hall_of_fame_get
 from LevelCompletionService import handle_level_completion_post
 
 app = Flask(__name__)
 CORS(app)
+app.logger.setLevel(logging.INFO)
+
+for logger_name in [app.name, "HallOfFameService", "LevelCompletionService"]:
+    logger = logging.getLogger(logger_name)
+    logger.addHandler(default_handler)
 
 
 @app.route('/hall_of_fame', methods=['GET'])
 def get_hall_of_fame():
-    return handle_hall_of_fame_get(None, None)
+    return handle_hall_of_fame_get({
+        "queryStringParameters": request.args
+    }, None)
 
 
 @app.route('/level_completion', methods=['POST'])
