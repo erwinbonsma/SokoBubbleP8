@@ -132,7 +132,7 @@ function makeHOFString(hof) {
 }
 
 async function fetchHallOfFame() {
-    const response = await fetch(hofServiceUrl);
+    const response = await fetch(`${hofServiceUrl}?id=${tableId}`);
     const responseJson = await response.json(); //extract JSON from the http response
     const hof = responseJson.hallOfFame;
 
