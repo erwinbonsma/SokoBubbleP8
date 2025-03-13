@@ -593,6 +593,12 @@ function stats:_update_total()
  end
 end
 
+function stats:makecode(
+ plyr_name
+)
+ return "todo"
+end
+
 function stats:all_solved()
  return (
   self.max_lvl_idx==#level_defs
@@ -1871,7 +1877,19 @@ function mainmenu:new()
 
  o.item_idx=1
  o.name_edit=textedit:new(
-  load_name(),"player 1"
+  load_name(),"player 1",{
+   editlen=8,
+   allowspace=true
+  }
+ )
+ o.code_edit=textedit:new(
+  _stats:makecode(
+   o:plyr_name()
+  ),
+  "----",{
+   editlen=4,
+   allowspace=false
+  }
  )
 
  return o
@@ -1904,7 +1922,7 @@ function mainmenu:_change_option()
 end
 
 function mainmenu:update()
- local max_idx=hof and 6 or 5
+ local max_idx=7
 
  if btnp(❎) then
   if self.item_idx==1 then
@@ -1974,36 +1992,38 @@ menu_items={
  "mode",
  "music",
  "name",
+ "code"
 }
 
 function mainmenu:_draw_menu()
- rect3d(30,56,97,104,1,13,2)
+ rect3d(30,52,97,112,1,13,2)
 
- local y=50+8*self.item_idx
- print(
-  "\^:0103070301000000",32,y,12
- )
- print(
-  "\^:0406070604000000",93,y,12
- )
+ local arrow_r="\^:0103070301000000"
 
  local leftprint=function(s,y,c)
   print(s,37,y,c)
  end
+ local ypos=function(i)
+  return 50+8*i-(
+   i<=3 and 4 or 0
+  )
+ end
 
+ local y=ypos(self.item_idx)
+ print(arrow_r,32,y,12)
+ print(
+  "\^:0406070604000000",93,y,12
+ )
  for i=1,#menu_items do
   local c=(
    self.item_idx==i and 12 or 13
   )
-  if i==6 and not hof then
-   c=0
-  end
   local print_fn=(
    i<=3 and centerprint or
    leftprint
   )
   print_fn(
-   menu_items[i],50+8*i,c
+   menu_items[i],ypos(i),c
   )
  end
 
@@ -2023,9 +2043,16 @@ function mainmenu:_draw_menu()
   self.name_edit.active
   and 12 or 13
  )
- self.name_edit:draw(
-  59,98,hof and 1 or 0
+ self.name_edit:draw(59,98,1)
+
+ rectfill(
+  58,105,74,111,
+  self.code_edit.active
+  and 12 or 13
  )
+ self.code_edit:draw(59,106,1)
+ print(arrow_r,77,106,13)
+ print("01",82,106,13)
 end
 
 function mainmenu:draw()
@@ -2077,11 +2104,10 @@ function game:update()
 end
 -->8
 textedit={}
-function textedit:new(s,default)
- local o=new_object(self,{
-  editlen=8,
-  allowspace=true
- })
+function textedit:new(
+ s,default,args
+)
+ local o=new_object(self,args)
 
  o.s=s
  o.default=default
