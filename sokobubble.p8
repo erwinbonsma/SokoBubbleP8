@@ -558,7 +558,7 @@ vminor=1
 function stats:new()
  local o=new_object(self)
 
- cartdata("eriban_sokobubble")
+ cartdata("eriban_sokobubble6")
  if (
   dget(0)!=vmajor or
   dget(1)<vminor
@@ -599,6 +599,14 @@ function stats:_update_total()
  for i=1,#level_defs do
   self.total+=self:get_hi(i)
  end
+end
+
+function stats:first_unsolved()
+ local i=1
+ while self:is_done(i) do
+  i+=1
+ end
+ return i
 end
 
 function stats:makecode(
@@ -773,21 +781,6 @@ end
 levelmenu={}
 function levelmenu:new()
  return new_object(self)
-end
-
-function levelmenu:show(
- max_lvl_idx
-)
- self.max_lvl_idx=max(
-  _stats.max_lvl_idx,
-  _mainmenu.code_lvl_idx
- )
-
- if self.lvl==nil then
-  self:set_lvl(
-   self.max_lvl_idx
-  )
- end
 end
 
 function levelmenu:set_lvl(
@@ -1874,6 +1867,9 @@ function _init()
  _stats=stats:new()
  _mainmenu=mainmenu:new()
  _levelmenu=levelmenu:new()
+ _levelmenu:set_lvl(
+  _stats:first_unsolved()
+ )
  _statsview=statsview:new()
  _helpview=helpview:new()
  _gpio=gpio:new(received_hof)
@@ -1922,10 +1918,10 @@ function show_levelmenu()
   show_mainmenu
  )
 
- _levelmenu:show(max(
+ _levelmenu.max_lvl_idx=max(
   _stats.max_lvl_idx,
   _mainmenu.code_lvl_idx
- ))
+ )
 
  scene=_levelmenu
 end
