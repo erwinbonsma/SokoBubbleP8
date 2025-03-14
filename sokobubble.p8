@@ -573,29 +573,19 @@ function stats:new()
  dset(1,vminor)
 
  --find the maximum level the
- --player can play w/o skipping
- --any unsolved levels
- o.max_lvl_idx=1
- while (
-  o:is_done(o.max_lvl_idx)
- ) do
-  o.max_lvl_idx+=1
- end
-
- --find the maximum level the
  --player has solved. there can
  --be gaps when the player used
  --a code, or new levels were
  --inserted after a version
  --update
- o.max_lvl_idx_gaps=#level_defs
+ o.max_lvl_idx=#level_defs
  while (
-  o.max_lvl_idx_gaps>1
+  o.max_lvl_idx>1
   and not o:is_done(
-   o.max_lvl_idx_gaps-1
+   o.max_lvl_idx-1
   )
  ) do
-  o.max_lvl_idx_gaps-=1
+  o.max_lvl_idx-=1
  end
 
  o:_update_total()
@@ -615,8 +605,7 @@ function stats:makecode(
  plyr_name
 )
  return self.coder:code(
-  self.max_lvl_idx_gaps,
-  plyr_name
+  self.max_lvl_idx,plyr_name
  )
 end
 
@@ -642,16 +631,9 @@ function stats:mark_done(
   self:_update_total()
 
   if (
-   lvl_idx==self.max_lvl_idx
+   lvl_idx>=self.max_lvl_idx
   ) then
-   self.max_lvl_idx+=1
-  end
-  if (
-   lvl_idx>=self.max_lvl_idx_gaps
-  ) then
-   self.max_lvl_idx_gaps=(
-    lvl_idx+1
-   )
+   self.max_lvl_idx=lvl_idx+1
   end
  end
 end
@@ -797,7 +779,7 @@ function levelmenu:show(
  max_lvl_idx
 )
  self.max_lvl_idx=max(
-  _stats.max_lvl_idx_gaps,
+  _stats.max_lvl_idx,
   _mainmenu.code_lvl_idx
  )
 
@@ -1941,7 +1923,7 @@ function show_levelmenu()
  )
 
  _levelmenu:show(max(
-  _stats.max_lvl_idx_gaps,
+  _stats.max_lvl_idx,
   _mainmenu.code_lvl_idx
  ))
 
@@ -2050,16 +2032,16 @@ function mainmenu:show()
  poke(0x5f5c,0)
 
  printh(
-  _stats.max_lvl_idx_gaps.."-"..
+  _stats.max_lvl_idx.."-"..
   self.code_lvl_idx
  )
 
  if (
-  _stats.max_lvl_idx_gaps>
+  _stats.max_lvl_idx>
   self.code_lvl_idx
  ) then
-  self:_update_code()
   printh("updating code")
+  self:_update_code()
  end
 end
 
@@ -2258,7 +2240,7 @@ function textedit:new(
  o.active=false
 
  o:home()
- 
+
  return o
 end
 
