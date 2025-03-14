@@ -573,7 +573,8 @@ function stats:new()
  dset(1,vminor)
 
  --find the maximum level the
- --player can play
+ --player can play w/o skipping
+ --any unsolved levels
  o.max_lvl_idx=1
  while (
   o:is_done(o.max_lvl_idx)
@@ -581,7 +582,24 @@ function stats:new()
   o.max_lvl_idx+=1
  end
 
+ --find the maximum level the
+ --player has solved. there can
+ --be gaps when the player used
+ --a code, or new levels were
+ --inserted after a version
+ --update
+ o.max_lvl_idx_gaps=#level_defs
+ while (
+  o.max_lvl_idx_gaps>1
+  and not o:is_done(
+   o.max_lvl_idx_gaps-1
+  )
+ ) do
+  o.max_lvl_idx_gaps-=1
+ end
+
  o:_update_total()
+ o.coder=coder:new()
 
  return o
 end
@@ -596,12 +614,17 @@ end
 function stats:makecode(
  plyr_name
 )
- return "todo"
+ return self.coder:code(
+  self.max_lvl_idx_gaps,
+  plyr_name
+ )
 end
 
-function stats:all_solved()
- return (
-  self.max_lvl_idx==#level_defs
+function stats:evalcode(
+ code,plyr_name
+)
+ return self.coder:decode(
+  code,plyr_name
  )
 end
 
@@ -623,6 +646,13 @@ function stats:mark_done(
   ) then
    self.max_lvl_idx+=1
   end
+  if (
+   lvl_idx>=self.max_lvl_idx_gaps
+  ) then
+   self.max_lvl_idx_gaps=(
+    lvl_idx+1
+   )
+  end
  end
 end
 
@@ -635,6 +665,62 @@ function stats:get_hi(lvl_idx)
   1+level_id(lvl_idx)
  )
  return hi>0 and hi or 999
+end
+
+coder={}
+function coder:new()
+ return new_object(self)
+end
+
+function coder:_reset()
+ self.codes={7,23,4,19}
+ self.p=1
+end
+
+function coder:_add(s)
+ for i=1,#s do
+  self.codes[self.p]=(
+   self.codes[self.p]+ord(s[i])
+  )%26
+  self.p=1+self.p%4
+ end
+end
+
+function coder:_code()
+ local s=""
+ for v in all(self.codes) do
+  s..=chr(97+v)
+ end
+ return s
+end
+
+function coder:code(
+ lvl_idx,plyr_name
+)
+ self:_reset()
+ plyr_name..="skb"
+ self:_add(plyr_name)
+ for i=1,lvl_idx do
+  self:_add(level_defs[i].name)
+  self:_add(plyr_name)
+ end
+ return self:_code()
+end
+
+function coder:decode(
+ code,plyr_name
+)
+ self:_reset()
+ plyr_name..="skb"
+ self:_add(plyr_name)
+ for i=1,#level_defs do
+  self:_add(level_defs[i].name)
+  self:_add(plyr_name)
+  if self:_code()==code then
+   return i
+  end
+ end
+ return 1
 end
 
 function draw_lvl_name(
@@ -704,11 +790,22 @@ end
 
 levelmenu={}
 function levelmenu:new()
- local o=new_object(self)
+ return new_object(self)
+end
 
- o:set_lvl(_stats.max_lvl_idx)
+function levelmenu:show(
+ max_lvl_idx
+)
+ self.max_lvl_idx=max(
+  _stats.max_lvl_idx_gaps,
+  _mainmenu.code_lvl_idx
+ )
 
- return o
+ if self.lvl==nil then
+  self:set_lvl(
+   self.max_lvl_idx
+  )
+ end
 end
 
 function levelmenu:set_lvl(
@@ -725,7 +822,7 @@ function levelmenu:update()
   return
  end
 
- local max_idx=_stats.max_lvl_idx
+ local max_idx=self.max_lvl_idx
 
  if max_idx==1 or btnp(❎) then
   if (
@@ -1843,6 +1940,11 @@ function show_levelmenu()
   show_mainmenu
  )
 
+ _levelmenu:show(max(
+  _stats.max_lvl_idx_gaps,
+  _mainmenu.code_lvl_idx
+ ))
+
  scene=_levelmenu
 end
 
@@ -1850,9 +1952,7 @@ function show_mainmenu()
  menuitem(1)
  menuitem(2)
 
- --enable default button hold
- --(for editing name)
- poke(0x5f5c,0)
+ _mainmenu:show()
 
  scene=_mainmenu
 end
@@ -1883,20 +1983,33 @@ function mainmenu:new()
   }
  )
  o.code_edit=textedit:new(
-  _stats:makecode(
-   o:plyr_name()
-  ),
+  "",
   "----",{
    editlen=4,
    allowspace=false
   }
  )
+ o:_update_code()
 
  return o
 end
 
 function mainmenu:plyr_name()
  return self.name_edit:value()
+end
+
+function mainmenu:_eval_code()
+ self.code_lvl_idx=_stats:evalcode(
+  self.code_edit.s,
+  self:plyr_name()
+ )
+end
+
+function mainmenu:_update_code()
+ self.code_edit.s=_stats:makecode(
+  self:plyr_name()
+ )
+ self:_eval_code()
 end
 
 function mainmenu:_change_option()
@@ -1917,7 +2030,36 @@ function mainmenu:_change_option()
    self.name_edit:home()
   else
    store_name(self.name_edit.s)
+   self:_update_code()
   end
+ elseif self.item_idx==7 then
+  self.code_edit.active=(
+   not self.code_edit.active
+  )
+  if self.code_edit.active then
+   self.code_edit:home()
+  else
+   self:_eval_code()
+  end
+ end
+end
+
+function mainmenu:show()
+ --enable default button hold
+ --(for editing name)
+ poke(0x5f5c,0)
+
+ printh(
+  _stats.max_lvl_idx_gaps.."-"..
+  self.code_lvl_idx
+ )
+
+ if (
+  _stats.max_lvl_idx_gaps>
+  self.code_lvl_idx
+ ) then
+  self:_update_code()
+  printh("updating code")
  end
 end
 
@@ -1937,6 +2079,8 @@ function mainmenu:update()
   end
  elseif self.name_edit.active then
   self.name_edit:update()
+ elseif self.code_edit.active then
+  self.code_edit:update()
  elseif btnp(⬆️) then
   self.item_idx=1+(
    self.item_idx+max_idx-2
@@ -2052,7 +2196,7 @@ function mainmenu:_draw_menu()
  )
  self.code_edit:draw(59,106,1)
  print(arrow_r,77,106,13)
- print("01",82,106,13)
+ print(self.code_lvl_idx,82,106,13)
 end
 
 function mainmenu:draw()
