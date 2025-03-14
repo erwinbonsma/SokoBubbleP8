@@ -558,7 +558,7 @@ vminor=1
 function stats:new()
  local o=new_object(self)
 
- cartdata("eriban_sokobubble6")
+ cartdata("eriban_sokobubble")
  if (
   dget(0)!=vmajor or
   dget(1)<vminor
@@ -725,7 +725,10 @@ function draw_lvl_name(
  roundrect(
   xmin-2,y,xmax+2,y+8,1
  )
- print(s,xmin,y+2,6)
+ print(s,xmin,y+2,
+  _stats:is_done(lvl.idx)
+  and 6 or 5
+ )
 end
 
 function level_switch_anim(args)
