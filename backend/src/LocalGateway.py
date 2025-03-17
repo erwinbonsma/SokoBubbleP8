@@ -7,12 +7,18 @@ import logging
 
 from HallOfFameService import handle_hall_of_fame_get
 from LevelCompletionService import handle_level_completion_post
+from migrate.CopyOldHofEntries import copy_old_hof_entries
 
 app = Flask(__name__)
 CORS(app)
 app.logger.setLevel(logging.INFO)
 
-for logger_name in [app.name, "HallOfFameService", "LevelCompletionService"]:
+for logger_name in [
+    app.name,
+    "HallOfFameService",
+    "LevelCompletionService",
+    "migrate.CopyOldHofEntries",
+]:
     logger = logging.getLogger(logger_name)
     logger.addHandler(default_handler)
 
@@ -43,6 +49,12 @@ def post_level_completion():
     except Exception as e:
         print("Error", e)
 
+
+@app.route('/migrate/copy_old_hof_entries', methods=['POST'])
+def wrap_copy_old_hof_entries():
+    return convert_response(copy_old_hof_entries({
+        "queryStringParameters": request.args
+    }, None))
 
 # if __name__ == '__main__':
 #    app.run(debug=True, port=5000)
