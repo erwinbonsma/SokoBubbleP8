@@ -21,8 +21,11 @@ def handle_hall_of_fame_get(event, context):
     try:
         response = client.query(
             TableName=TABLE_NAME,
-            KeyConditionExpression="PKEY = :pkey",
-            ExpressionAttributeValues={":pkey": {"S": f"HallOfFame#{id}"}}
+            KeyConditionExpression="PKEY = :pkey AND begins_with(SKEY, :skey_prefix)",
+            ExpressionAttributeValues={
+                ":pkey": {"S": f"HallOfFame#{id}"},
+                ":skey_prefix": {"S": "Level="}
+            }
         )
         logger.info(f"{response=}")
     except ClientError as e:

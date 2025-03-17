@@ -27,16 +27,16 @@ logger.setLevel(logging.INFO)
 
 
 def put_hof_entry(
-    table_id, time_stamp, player, level, move_count
+    table_id, skey, time_stamp, player, move_count
 ):
     """
     Adds initial entry to given Hall of Fame
     """
-    logger.info(f"Adding new entry: {table_id=}, {level=}")
+    logger.info(f"Adding new entry: {table_id=}, {skey=}")
     try:
         item = {
             "PKEY": {"S": f"HallOfFame#{table_id}"},
-            "SKEY": {"S": f"Level={level}"},
+            "SKEY": {"S": skey},
             "Player": {"S": player},
             "MoveCount": {"N": str(move_count)},
             "UpdateTime": {"S": time_stamp},
@@ -54,7 +54,7 @@ def put_hof_entry(
 
 
 def try_update_hof_entry(
-    table_id, time_stamp, player, level, move_count
+    table_id, skey, time_stamp, player, move_count
 ):
     """
     Tries to update entry for given Hall of Fame.
@@ -63,12 +63,12 @@ def try_update_hof_entry(
     The "improved" field indicates whether score was improved.
     """
     try:
-        logger.info(f"Conditionally updating HOF entry for {table_id=}, {level=}")
+        logger.info(f"Conditionally updating HOF entry for {table_id=}, {skey=}")
         response = client.update_item(
             TableName=TABLE_NAME,
             Key={
                 "PKEY": {"S": f"HallOfFame#{table_id}"},
-                "SKEY": {"S": f"Level={level}"},
+                "SKEY": {"S": skey},
             },
             UpdateExpression=f"SET Player = :player, MoveCount = :move_count, UpdateTime = :datetime",
             ConditionExpression="MoveCount > :move_count",
@@ -93,7 +93,7 @@ def try_update_hof_entry(
                 item["Improved"] = False
             else:
                 logger.info("No entry exists yet")
-                item = put_hof_entry(table_id, time_stamp, player, level, move_count)
+                item = put_hof_entry(table_id, skey, time_stamp, player, move_count)
                 item["Improved"] = True
         else:
             logger.error("Failed to update hi-score:", e)
@@ -109,6 +109,7 @@ def handle_level_completion_post(event, context):
     try:
         player = request_json["player"]
         level = request_json["level"]
+        level_id = request_json["levelId"]
         move_count = request_json["moveCount"]
         move_history = request_json["moveHistory"]
         table_id = request_json.get("tableId", DEFAULT_TABLE_ID)
@@ -133,6 +134,7 @@ def handle_level_completion_post(event, context):
                 "SKEY": {"S": f"EntryTime={time_stamp}"},
                 "Player": {"S": player},
                 "Level": {"N": str(level)},
+                "LevelId": {"N": str(level_id)},
                 "MoveCount": {"N": str(move_count)},
                 "MoveHistory": {"S": move_history},
                 "Table": {"S": table_id},
@@ -149,17 +151,29 @@ def handle_level_completion_post(event, context):
             return server_error(str(e))
 
     try:
-        item = try_update_hof_entry(table_id, time_stamp, player, level, move_count)
+        # New storage
+        skey = f"LevelId={level_id}"
+        item = try_update_hof_entry(table_id, skey, time_stamp, player, move_count)
         if item["Improved"] and table_id != DEFAULT_TABLE_ID:
             try_update_hof_entry(
-                DEFAULT_TABLE_ID, time_stamp, player, level, move_count
+                DEFAULT_TABLE_ID, skey, time_stamp, player, move_count
             )
+
+        # Old storage (temporary - during transition)
+        skey = f"Level={level}"
+        item = try_update_hof_entry(table_id, skey, time_stamp, player, move_count)
+        if item["Improved"] and table_id != DEFAULT_TABLE_ID:
+            try_update_hof_entry(
+                DEFAULT_TABLE_ID, skey, time_stamp, player, move_count
+            )
+
     except ClientError as e:
         logger.warning(str(e))
         return server_error(str(e))
 
     return request_handled({
-        "level": int(level),
+        "level": level,
+        "levelId": level_id,
         "player": item["Player"]["S"],
         "moveCount": int(item["MoveCount"]["N"]),
         "improved": item["Improved"]
