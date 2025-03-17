@@ -109,7 +109,7 @@ def handle_level_completion_post(event, context):
     try:
         player = request_json["player"]
         level = request_json["level"]
-        level_id = request_json["levelId"]
+        level_id = request_json.get("levelId")
         move_count = request_json["moveCount"]
         move_history = request_json["moveHistory"]
         table_id = request_json.get("tableId", DEFAULT_TABLE_ID)
@@ -151,13 +151,14 @@ def handle_level_completion_post(event, context):
             return server_error(str(e))
 
     try:
-        # New storage
-        skey = f"LevelId={level_id}"
-        item = try_update_hof_entry(table_id, skey, time_stamp, player, move_count)
-        if item["Improved"] and table_id != DEFAULT_TABLE_ID:
-            try_update_hof_entry(
-                DEFAULT_TABLE_ID, skey, time_stamp, player, move_count
-            )
+        if level_id is not None:
+            # New storage
+            skey = f"LevelId={level_id}"
+            item = try_update_hof_entry(table_id, skey, time_stamp, player, move_count)
+            if item["Improved"] and table_id != DEFAULT_TABLE_ID:
+                try_update_hof_entry(
+                    DEFAULT_TABLE_ID, skey, time_stamp, player, move_count
+                )
 
         # Old storage (temporary - during transition)
         skey = f"Level={level}"
