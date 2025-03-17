@@ -2423,9 +2423,10 @@ end
 
 function post_result(lvl)
  local s=(
-  ""..lvl.idx..","
-  ..lvl.mov_cnt..","
+  "result,"..lvl.idx..","
+  ..lvl.lvl_def.id..","
   .._mainmenu:plyr_name()..","
+  ..lvl.mov_cnt..","
   ..short_mov_str(
    lvl.player.mov_history
   )

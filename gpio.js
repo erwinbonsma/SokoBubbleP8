@@ -43,15 +43,17 @@ function updateHtmlTable(hof) {
     updateHtmlTablePartial(hof, 13, 24, "HallOfFame-Right");
 }
 
-async function logLevelCompletion(level, moveCount, player, moveHistory) {
+async function logLevelCompletion(solveDetails) {
+    const body = JSON.stringify({ ...solveDetails, tableId });
+
     var attempt = 0;
     var ok = false;
     var response;
     while (!ok) {
-        console.info("Posting level completion");
+        console.info(`Posting level completion: ${body}`);
         response = await fetch(logCompletionUrl, {
             method: 'POST',
-            body: JSON.stringify({ level, player, moveCount, moveHistory, tableId }),
+            body,
             headers: {
                 'Content-Type': 'application/json'
             }
@@ -78,7 +80,7 @@ async function logLevelCompletion(level, moveCount, player, moveHistory) {
 
     const responseJson = await response.json(); //extract JSON from the http response
 
-    const levelEntry = sokobubbleHOF[level - 1];
+    const levelEntry = sokobubbleHOF[solveDetails.level - 1];
     levelEntry[0] = responseJson.player;
     levelEntry[1] = responseJson.moveCount;
 
@@ -101,13 +103,24 @@ function gpioRead() {
     } else if (n == 128) {
         console.info(`GPIO: Received ${gpioTxtIn}`);
         const args = gpioTxtIn.split(",");
-        if (args.length != 4) {
-            console.warn("Unexpected length")
-        } else {
-            const [levelIdx, numMoves, playerName, moves] = args;
+        const msgId = args[0];
+        if (msgId === "result") {
+            if (args.length != 6) {
+                console.warn("Unexpected length")
+            } else {
+                const [levelIdx, levelId, player, moveCount, moveHistory] = args.slice(1);
 
-            // Fire and forget. Do not wait inside this GPIO handler
-            logLevelCompletion(parseInt(levelIdx), parseInt(numMoves), playerName, moves);
+                // Fire and forget. Do not wait inside this GPIO handler
+                logLevelCompletion({
+                    level: parseInt(levelIdx),
+                    levelId: parseInt(levelId),
+                    moveCount: parseInt(moveCount),
+                    player,
+                    moveHistory
+                });
+            }
+        } else {
+            console.warn(`Unexpected message: ${msgId}`);
         }
 
         gpioTxtIn = "";
