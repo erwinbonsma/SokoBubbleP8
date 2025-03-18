@@ -36,7 +36,7 @@ def handle_hall_of_fame_get(event, context):
                 ":skey_prefix": {"S": skey}
             }
         )
-        logger.info(f"{response=}")
+        logger.debug(f"{response=}")
     except ClientError as e:
         logger.warning(str(e))
         return server_error(str(e))

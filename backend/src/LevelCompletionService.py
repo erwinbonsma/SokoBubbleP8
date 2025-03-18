@@ -104,7 +104,6 @@ def try_update_hof_entry(
             logger.error("Failed to update hi-score:", e)
             raise
 
-    logger.info(f"Hi-score improved = {item['Improved']}")
     return item
 
 
@@ -121,6 +120,7 @@ def handle_level_completion_post(event, context):
     except KeyError as e:
         return bad_request(str(e))
 
+    logger.info(f"{player=}, {level=}, {level_id=}, {move_count=}, {move_history=}, {table_id=}")
     if (
         len(player) > 8
         or (level < 1 or level > NUM_LEVELS)
@@ -131,7 +131,7 @@ def handle_level_completion_post(event, context):
         return bad_request()
 
     try:
-        logger.info(f"Storing log entry for {table_id}")
+        logger.info(f"Storing log entry for {table_id=}")
         client.put_item(
             TableName=TABLE_NAME,
             Item={
