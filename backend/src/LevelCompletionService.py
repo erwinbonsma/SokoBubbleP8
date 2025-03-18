@@ -27,7 +27,7 @@ logger.setLevel(logging.INFO)
 
 
 def put_hof_entry(
-    table_id, skey, time_stamp, player, move_count, move_history
+    table_id, skey, datetime_str, player, move_count, move_history
 ):
     """
     Adds initial entry to given Hall of Fame
@@ -38,7 +38,7 @@ def put_hof_entry(
             "PKEY": {"S": f"HallOfFame#{table_id}"},
             "SKEY": {"S": skey},
             "Player": {"S": player},
-            "UpdateTime": {"S": time_stamp},
+            "UpdateTime": {"S": datetime_str},
             "MoveCount": {"N": str(move_count)},
             "MoveHistory": {"S": move_history},
         }
@@ -55,7 +55,7 @@ def put_hof_entry(
 
 
 def try_update_hof_entry(
-    table_id, skey, time_stamp, player, move_count, move_history
+    table_id, skey, datetime_str, player, move_count, move_history
 ):
     """
     Tries to update entry for given Hall of Fame.
@@ -79,7 +79,7 @@ def try_update_hof_entry(
             ExpressionAttributeValues={
                 ":move_count": {"N": str(move_count)},
                 ":move_history": {"S": move_history},
-                ":datetime": {"S": time_stamp},
+                ":datetime": {"S": datetime_str},
                 ":player": {"S": player},
             },
             ReturnValues="ALL_NEW",
@@ -98,7 +98,7 @@ def try_update_hof_entry(
                 item["Improved"] = False
             else:
                 logger.info("No entry exists yet")
-                item = put_hof_entry(table_id, skey, time_stamp, player, move_count, move_history)
+                item = put_hof_entry(table_id, skey, datetime_str, player, move_count, move_history)
                 item["Improved"] = True
         else:
             logger.error("Failed to update hi-score:", e)
@@ -109,7 +109,6 @@ def try_update_hof_entry(
 
 def handle_level_completion_post(event, context):
     request_json = json.loads(event["body"])
-    time_stamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     try:
         player = request_json["player"]
         level = request_json["level"]
@@ -130,13 +129,17 @@ def handle_level_completion_post(event, context):
     ):
         return bad_request()
 
+    now = datetime.datetime.now()
+    date_str = now.strftime("%Y-%m-%d")
+    datetime_str = date_str + now.strftime(" %H:%M:%S")
+
     try:
         logger.info(f"Storing log entry for {table_id=}")
         client.put_item(
             TableName=TABLE_NAME,
             Item={
-                "PKEY": {"S": "Log"},
-                "SKEY": {"S": f"EntryTime={time_stamp}"},
+                "PKEY": {"S": f"Log#{date_str}"},
+                "SKEY": {"S": f"EntryTime={datetime_str}"},
                 "Player": {"S": player},
                 "Level": {"N": str(level)},
                 "LevelId": {"N": str(level_id)},
@@ -158,21 +161,21 @@ def handle_level_completion_post(event, context):
     try:
         # Old storage (temporary - during transition)
         skey = f"Level={level}"
-        item = try_update_hof_entry(table_id, skey, time_stamp, player, move_count, move_history)
+        item = try_update_hof_entry(table_id, skey, datetime_str, player, move_count, move_history)
         if item["Improved"] and table_id != DEFAULT_TABLE_ID:
             try_update_hof_entry(
-                DEFAULT_TABLE_ID, skey, time_stamp, player, move_count, move_history
+                DEFAULT_TABLE_ID, skey, datetime_str, player, move_count, move_history
             )
 
         if level_id is not None:
             # New storage
             skey = f"LevelId={level_id}"
             item = try_update_hof_entry(
-                table_id, skey, time_stamp, player, move_count, move_history
+                table_id, skey, datetime_str, player, move_count, move_history
             )
             if item["Improved"] and table_id != DEFAULT_TABLE_ID:
                 try_update_hof_entry(
-                    DEFAULT_TABLE_ID, skey, time_stamp, player, move_count, move_history
+                    DEFAULT_TABLE_ID, skey, datetime_str, player, move_count, move_history
                 )
 
     except ClientError as e:
