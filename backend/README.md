@@ -1,12 +1,13 @@
 # DynamoDB schema
 
 Level Completion Logs
-- PKEY = "Log"
+- PKEY = "Log#{date}"
 - SKEY = "Datetime={datetime in seconds}"
     - Only one entry per second is allowed.
     - The request is rejected when item cannot be added
     - This is a simple guard against brute-force DDOS attacks
 - Level = {index}
+- LevelId = {level ID}
 - Player = "{playername}"
 - MoveCount
 - MoveHistory = "{moves}"
@@ -14,16 +15,20 @@ Level Completion Logs
 
 Level Hi-score
 - PKEY = "HallOfFame#{id}"
-- SKEY = "Level={index}"
+- SKEY = "LevelId={index}"
 - Player = "{playername}"
 - MoveCount
-- Datetime = "{datetime in seconds}"
+- MoveHistory
+- UpdateTime = "{datetime in seconds}"
 
 # REST API
 
-GET hall_of_fame[?id={id}]
+GET hall_of_fame[?id={id}&key={index|id}]
 - Returns hi-score for each level
-- The optional id selects the table. Defaults to "global"
+- The optional `id` selects the table. Defaults to "global"
+- The optional `key` selects the key used for the Hall of Fame entries
+    - `index` is deprecated (but still the default to support old clients)
+    - New clients should use `id` to support updates to levels
 
 PUT level_completion
 - Adds to log
