@@ -151,6 +151,14 @@ def handle_level_completion_post(event, context):
             return server_error(str(e))
 
     try:
+        # Old storage (temporary - during transition)
+        skey = f"Level={level}"
+        item = try_update_hof_entry(table_id, skey, time_stamp, player, move_count)
+        if item["Improved"] and table_id != DEFAULT_TABLE_ID:
+            try_update_hof_entry(
+                DEFAULT_TABLE_ID, skey, time_stamp, player, move_count
+            )
+
         if level_id is not None:
             # New storage
             skey = f"LevelId={level_id}"
@@ -159,14 +167,6 @@ def handle_level_completion_post(event, context):
                 try_update_hof_entry(
                     DEFAULT_TABLE_ID, skey, time_stamp, player, move_count
                 )
-
-        # Old storage (temporary - during transition)
-        skey = f"Level={level}"
-        item = try_update_hof_entry(table_id, skey, time_stamp, player, move_count)
-        if item["Improved"] and table_id != DEFAULT_TABLE_ID:
-            try_update_hof_entry(
-                DEFAULT_TABLE_ID, skey, time_stamp, player, move_count
-            )
 
     except ClientError as e:
         logger.warning(str(e))
