@@ -27,7 +27,7 @@ logger.setLevel(logging.INFO)
 
 
 def put_hof_entry(
-    table_id, skey, time_stamp, player, move_count
+    table_id, skey, time_stamp, player, move_count, move_history
 ):
     """
     Adds initial entry to given Hall of Fame
@@ -38,8 +38,9 @@ def put_hof_entry(
             "PKEY": {"S": f"HallOfFame#{table_id}"},
             "SKEY": {"S": skey},
             "Player": {"S": player},
-            "MoveCount": {"N": str(move_count)},
             "UpdateTime": {"S": time_stamp},
+            "MoveCount": {"N": str(move_count)},
+            "MoveHistory": {"S": move_history},
         }
         client.put_item(
             TableName=TABLE_NAME,
@@ -54,7 +55,7 @@ def put_hof_entry(
 
 
 def try_update_hof_entry(
-    table_id, skey, time_stamp, player, move_count
+    table_id, skey, time_stamp, player, move_count, move_history
 ):
     """
     Tries to update entry for given Hall of Fame.
@@ -70,10 +71,14 @@ def try_update_hof_entry(
                 "PKEY": {"S": f"HallOfFame#{table_id}"},
                 "SKEY": {"S": skey},
             },
-            UpdateExpression=f"SET Player = :player, MoveCount = :move_count, UpdateTime = :datetime",
+            UpdateExpression=(
+                "SET Player = :player, UpdateTime = :datetime, "
+                "MoveCount = :move_count, MoveHistory = :move_history"
+            ),
             ConditionExpression="MoveCount > :move_count",
             ExpressionAttributeValues={
                 ":move_count": {"N": str(move_count)},
+                ":move_history": {"S": move_history},
                 ":datetime": {"S": time_stamp},
                 ":player": {"S": player},
             },
@@ -93,7 +98,7 @@ def try_update_hof_entry(
                 item["Improved"] = False
             else:
                 logger.info("No entry exists yet")
-                item = put_hof_entry(table_id, skey, time_stamp, player, move_count)
+                item = put_hof_entry(table_id, skey, time_stamp, player, move_count, move_history)
                 item["Improved"] = True
         else:
             logger.error("Failed to update hi-score:", e)
@@ -153,19 +158,21 @@ def handle_level_completion_post(event, context):
     try:
         # Old storage (temporary - during transition)
         skey = f"Level={level}"
-        item = try_update_hof_entry(table_id, skey, time_stamp, player, move_count)
+        item = try_update_hof_entry(table_id, skey, time_stamp, player, move_count, move_history)
         if item["Improved"] and table_id != DEFAULT_TABLE_ID:
             try_update_hof_entry(
-                DEFAULT_TABLE_ID, skey, time_stamp, player, move_count
+                DEFAULT_TABLE_ID, skey, time_stamp, player, move_count, move_history
             )
 
         if level_id is not None:
             # New storage
             skey = f"LevelId={level_id}"
-            item = try_update_hof_entry(table_id, skey, time_stamp, player, move_count)
+            item = try_update_hof_entry(
+                table_id, skey, time_stamp, player, move_count, move_history
+            )
             if item["Improved"] and table_id != DEFAULT_TABLE_ID:
                 try_update_hof_entry(
-                    DEFAULT_TABLE_ID, skey, time_stamp, player, move_count
+                    DEFAULT_TABLE_ID, skey, time_stamp, player, move_count, move_history
                 )
 
     except ClientError as e:
