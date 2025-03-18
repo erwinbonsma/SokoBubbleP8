@@ -1875,8 +1875,10 @@ function _init()
  )
  _statsview=statsview:new()
  _helpview=helpview:new()
- _gpio=gpio:new(received_hof)
-
+ _gpio=gpio:new(
+  received_hof,post_levels
+ )
+ 
  music(0)
 
  show_mainmenu()
@@ -2421,6 +2423,15 @@ function short_mov_str(hist)
  return s
 end
 
+function post_levels()
+ local s="levels"
+ for i=1,#level_defs-1 do
+  s..=","..level_defs[i].id
+ end
+ printh(s)
+ _gpio:output(s)
+end
+
 function post_result(lvl)
  local s=(
   "result,"..lvl.idx..","
@@ -2441,10 +2452,11 @@ gpio_a_read=0x5fc0
 gpio_blksize=63
 
 gpio={}
-function gpio:new(callback)
+function gpio:new(msg_cb,con_cb)
  local o=new_object(self)
 
- o.callback=callback
+ o.msg_callback=msg_cb
+ o.con_callback=con_cb
  o.txt_out={}
  o.connected=false
  o.txt_in=""
@@ -2481,7 +2493,7 @@ end
 function gpio:_read()
  local n=peek(gpio_a_read)
  if n==128 then
-  self.callback(self.txt_in)
+  self.msg_callback(self.txt_in)
   self.txt_in=""
  elseif n<=gpio_blksize then
   for i=1,n do
@@ -2500,7 +2512,10 @@ end
 
 function gpio:update()
  if peek(gpio_a_write)==0 then
-  self.connected=true
+  if not self.connected then
+   self.connected=true
+   self.con_callback()
+  end
   if #self.txt_out>0 then
    self:_write()
   end

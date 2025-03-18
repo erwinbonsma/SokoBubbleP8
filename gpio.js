@@ -14,6 +14,11 @@ const gpioWriteAddress = 64;
 const gpioBlockSize = 63;
 const hofSize = 24;
 
+// This should match what is sent from PICO-8 client after bootstrap.
+// It is duplicated here so that the Hall of Fame can be shown on the HTML page
+// when the PICO-8 game is not (yet) started.
+var levelIds = [1,2,3,4,6,7,24,8,9,16,17,21,23,10,11,15,12,14,20,26,13,18,19,22];
+
 var sokobubbleHOF = Array(hofSize).fill(null).map(_ => ["-", 999]);
 var gpioConnected = false;
 var gpioTxtIn = "";
@@ -119,6 +124,17 @@ function gpioRead() {
                     moveHistory
                 });
             }
+        } else if (msgId === "levels") {
+            if (args.length != hofSize + 1) {
+                console.warn("Unexpected length");
+            } else {
+                levelIds = Array.from(args.slice(1).map(x => parseInt(x)));
+                console.info(`levelIds = ${levelIds}`);
+
+                // This should not have impacted the Hall of Fame, but
+                // updating just in case.
+                updateHtmlTable();
+            }
         } else {
             console.warn(`Unexpected message: ${msgId}`);
         }
@@ -164,12 +180,12 @@ function makeHOFString(hof) {
 }
 
 async function fetchHallOfFame() {
-    const response = await fetch(`${hofServiceUrl}?id=${tableId}`);
+    const response = await fetch(`${hofServiceUrl}?id=${tableId}&key=id`);
     const responseJson = await response.json(); //extract JSON from the http response
     const hof = responseJson.hallOfFame;
 
     for (let i = 0; i < hofSize; i++) {
-        const entry = hof[(i + 1).toString()];
+        const entry = hof[levelIds[i].toString()];
         if (entry !== undefined) {
             sokobubbleHOF[i] = [entry.player, entry.moveCount];
         }

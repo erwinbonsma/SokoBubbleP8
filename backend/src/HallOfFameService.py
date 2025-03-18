@@ -15,8 +15,17 @@ logger.setLevel(logging.INFO)
 
 
 def handle_hall_of_fame_get(event, context):
-    id = event.get("queryStringParameters", {}).get("id", DEFAULT_TABLE_ID)
-    logger.info(f"Request for Hall of Fame {id=}")
+    params = event.get("queryStringParameters", {})
+    id = params.get("id", DEFAULT_TABLE_ID)
+    key = params.get("key", "index")
+
+    logger.info(f"Request for Hall of Fame {id=}, {key=}")
+    if key == "index":
+        skey = "Level="
+    elif key == "id":
+        skey = "LevelId="
+    else:
+        return bad_request(f"Unknown key '{key}'")
 
     try:
         response = client.query(
@@ -24,7 +33,7 @@ def handle_hall_of_fame_get(event, context):
             KeyConditionExpression="PKEY = :pkey AND begins_with(SKEY, :skey_prefix)",
             ExpressionAttributeValues={
                 ":pkey": {"S": f"HallOfFame#{id}"},
-                ":skey_prefix": {"S": "Level="}
+                ":skey_prefix": {"S": skey}
             }
         )
         logger.info(f"{response=}")
@@ -34,7 +43,7 @@ def handle_hall_of_fame_get(event, context):
 
     return request_handled({
         "hallOfFame": {
-            int(item["SKEY"]["S"][6:]): {
+            int(item["SKEY"]["S"][len(skey):]): {
                 "player": item["Player"]["S"],
                 "moveCount": int(item["MoveCount"]["N"])
             }
