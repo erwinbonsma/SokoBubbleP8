@@ -1,7 +1,9 @@
+from dataclasses import dataclass
 import datetime
 import json
 import logging
 import os
+from typing import Optional
 
 import boto3
 from botocore.exceptions import ClientError
@@ -18,6 +20,41 @@ NUM_LEVELS = 24
 MIN_MOVE_COUNT = 20
 MAX_MOVE_COUNT = 999
 
+
+@dataclass
+class LevelCompletion:
+    player: str
+    level: int
+    level_id: Optional[int]
+    update_time: str
+    move_count: int
+    move_history: str
+
+    def __post_init__(self):
+        if (
+            len(self.player) > 8
+            or (self.level < 1 or self.level > NUM_LEVELS)
+            or (self.move_count < MIN_MOVE_COUNT or self.move_count > MAX_MOVE_COUNT)
+            or len(self.move_history) > self.move_count
+        ):
+            raise ValueError("Field validation failed")
+
+    @property
+    def date_str(self):
+        return self.update_time[:self.update_time.find(" ")]
+
+    @staticmethod
+    def from_json(json):
+        return LevelCompletion(
+            player=json["player"],
+            level=json["level"],
+            level_id=json.get("levelId"),
+            move_count=json["moveCount"],
+            move_history=json["moveHistory"],
+            update_time=datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        )
+
+
 STAGE = os.environ.get("STAGE", "dev")
 TABLE_NAME = f"Sokobubble-{STAGE}"
 
@@ -26,9 +63,7 @@ logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 
 
-def put_hof_entry(
-    table_id, skey, datetime_str, player, move_count, move_history
-):
+def put_hof_entry(table_id: str, skey: str, lc: LevelCompletion):
     """
     Adds initial entry to given Hall of Fame
     """
@@ -37,10 +72,10 @@ def put_hof_entry(
         item = {
             "PKEY": {"S": f"HallOfFame#{table_id}"},
             "SKEY": {"S": skey},
-            "Player": {"S": player},
-            "UpdateTime": {"S": datetime_str},
-            "MoveCount": {"N": str(move_count)},
-            "MoveHistory": {"S": move_history},
+            "Player": {"S": lc.player},
+            "UpdateTime": {"S": lc.update_time},
+            "MoveCount": {"N": str(lc.move_count)},
+            "MoveHistory": {"S": lc.move_history},
         }
         client.put_item(
             TableName=TABLE_NAME,
@@ -54,9 +89,7 @@ def put_hof_entry(
         raise
 
 
-def try_update_hof_entry(
-    table_id, skey, datetime_str, player, move_count, move_history
-):
+def try_update_hof_entry(table_id: str, skey: str, lc: LevelCompletion):
     """
     Tries to update entry for given Hall of Fame.
     Creates entry when one did not exist yet.
@@ -77,10 +110,10 @@ def try_update_hof_entry(
             ),
             ConditionExpression="MoveCount > :move_count",
             ExpressionAttributeValues={
-                ":move_count": {"N": str(move_count)},
-                ":move_history": {"S": move_history},
-                ":datetime": {"S": datetime_str},
-                ":player": {"S": player},
+                ":move_count": {"N": str(lc.move_count)},
+                ":move_history": {"S": lc.move_history},
+                ":datetime": {"S": lc.update_time},
+                ":player": {"S": lc.player},
             },
             ReturnValues="ALL_NEW",
             ReturnValuesOnConditionCheckFailure="ALL_OLD"
@@ -98,7 +131,7 @@ def try_update_hof_entry(
                 item["Improved"] = False
             else:
                 logger.info("No entry exists yet")
-                item = put_hof_entry(table_id, skey, datetime_str, player, move_count, move_history)
+                item = put_hof_entry(table_id, skey, lc)
                 item["Improved"] = True
         else:
             logger.error("Failed to update hi-score:", e)
@@ -107,49 +140,56 @@ def try_update_hof_entry(
     return item
 
 
+def try_update_hof_entries(table_id: str, lc: LevelCompletion):
+    # Old storage (temporary - during transition)
+    skey = f"Level={lc.level}"
+    item = try_update_hof_entry(table_id, skey, lc)
+    if item["Improved"] and table_id != DEFAULT_TABLE_ID:
+        try_update_hof_entry(DEFAULT_TABLE_ID, skey, lc)
+
+    if lc.level_id is not None:
+        # New storage
+        skey = f"LevelId={lc.level_id}"
+        item = try_update_hof_entry(table_id, skey, lc)
+        if item["Improved"] and table_id != DEFAULT_TABLE_ID:
+            try_update_hof_entry(DEFAULT_TABLE_ID, skey, lc)
+
+    return item
+
+
+def store_log_entry(lc: LevelCompletion, table_id: str):
+    logger.info(f"Storing log entry {lc} for {table_id=}")
+
+    client.put_item(
+        TableName=TABLE_NAME,
+        Item={
+            "PKEY": {"S": f"Log#{lc.date_str}"},
+            "SKEY": {"S": f"EntryTime={lc.update_time}"},
+            "Player": {"S": lc.player},
+            "Level": {"N": str(lc.level)},
+            "LevelId": {"N": str(lc.level_id)},
+            "MoveCount": {"N": str(lc.move_count)},
+            "MoveHistory": {"S": lc.move_history},
+            "Table": {"S": table_id},
+        },
+        ConditionExpression="attribute_not_exists(PKEY)"
+    )
+
+    logger.info("Stored log entry")
+
+
 def handle_level_completion_post(event, context):
     request_json = json.loads(event["body"])
     try:
-        player = request_json["player"]
-        level = request_json["level"]
-        level_id = request_json.get("levelId")
-        move_count = request_json["moveCount"]
-        move_history = request_json["moveHistory"]
+        level_completion = LevelCompletion.from_json(request_json)
         table_id = request_json.get("tableId", DEFAULT_TABLE_ID)
     except KeyError as e:
+        return bad_request(f"Missing key: {str(e)}")
+    except ValueError as e:
         return bad_request(str(e))
 
-    logger.info(f"{player=}, {level=}, {level_id=}, {move_count=}, {move_history=}, {table_id=}")
-    if (
-        len(player) > 8
-        or (level < 1 or level > NUM_LEVELS)
-        or (move_count < MIN_MOVE_COUNT or move_count > MAX_MOVE_COUNT)
-        or len(move_history) > move_count
-        or len(table_id) > 8
-    ):
-        return bad_request()
-
-    now = datetime.datetime.now()
-    date_str = now.strftime("%Y-%m-%d")
-    datetime_str = date_str + now.strftime(" %H:%M:%S")
-
     try:
-        logger.info(f"Storing log entry for {table_id=}")
-        client.put_item(
-            TableName=TABLE_NAME,
-            Item={
-                "PKEY": {"S": f"Log#{date_str}"},
-                "SKEY": {"S": f"EntryTime={datetime_str}"},
-                "Player": {"S": player},
-                "Level": {"N": str(level)},
-                "LevelId": {"N": str(level_id)},
-                "MoveCount": {"N": str(move_count)},
-                "MoveHistory": {"S": move_history},
-                "Table": {"S": table_id},
-            },
-            ConditionExpression="attribute_not_exists(PKEY)"
-        )
-        logger.info("Stored log entry")
+        store_log_entry(level_completion, table_id)
     except ClientError as e:
         if e.response['Error']['Code'] == "ConditionalCheckFailedException":
             logger.warning(f"Failed to add log-entry due to clash")
@@ -159,32 +199,14 @@ def handle_level_completion_post(event, context):
             return server_error(str(e))
 
     try:
-        # Old storage (temporary - during transition)
-        skey = f"Level={level}"
-        item = try_update_hof_entry(table_id, skey, datetime_str, player, move_count, move_history)
-        if item["Improved"] and table_id != DEFAULT_TABLE_ID:
-            try_update_hof_entry(
-                DEFAULT_TABLE_ID, skey, datetime_str, player, move_count, move_history
-            )
-
-        if level_id is not None:
-            # New storage
-            skey = f"LevelId={level_id}"
-            item = try_update_hof_entry(
-                table_id, skey, datetime_str, player, move_count, move_history
-            )
-            if item["Improved"] and table_id != DEFAULT_TABLE_ID:
-                try_update_hof_entry(
-                    DEFAULT_TABLE_ID, skey, datetime_str, player, move_count, move_history
-                )
-
+        item = try_update_hof_entries(table_id, level_completion)
     except ClientError as e:
         logger.warning(str(e))
         return server_error(str(e))
 
     return request_handled({
-        "level": level,
-        "levelId": level_id,
+        "level": level_completion.level,
+        "levelId": level_completion.level_id,
         "player": item["Player"]["S"],
         "moveCount": int(item["MoveCount"]["N"]),
         "improved": item["Improved"]
