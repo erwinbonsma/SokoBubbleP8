@@ -1,11 +1,11 @@
 ### Get default (global) Hall of Fame
 
-GET {{hall_of_fame_url}} HTTP/1.1
+GET {{hall_of_fame_url}}?key=id HTTP/1.1
 content-type: application/json
 
-### Get custom Hall of Fame
+### Get custom Hall of Fame, by ID
 
-GET {{hall_of_fame_url}}?id=custom HTTP/1.1
+GET {{hall_of_fame_url}}?id=custom&key=id HTTP/1.1
 content-type: application/json
 
 ### Sub-optimal global entry for Level 1
@@ -16,6 +16,7 @@ content-type: application/json
 {
     "player": "alice",
     "level": 1,
+    "levelId": 1,
     "moveCount": 27,
     "moveHistory": "u2rld4r3l3u4r2d2u2r2d"
 }
@@ -28,6 +29,7 @@ content-type: application/json
 {
     "player": "bob",
     "level": 1,
+    "levelId": 1,
     "moveCount": 23,
     "moveHistory": "u2r2d2u2r2dul4d4r3"
 }
@@ -40,6 +42,7 @@ content-type: application/json
 {
     "player": "alice",
     "level": 2,
+    "levelId": 2,
     "moveCount": 27,
     "moveHistory": "u2d4u3r2d2l3ru3d3l2u2",
     "tableId": "custom"
