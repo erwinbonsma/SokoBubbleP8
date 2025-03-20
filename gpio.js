@@ -133,7 +133,7 @@ function gpioRead() {
 
                 // This should not have impacted the Hall of Fame, but
                 // updating just in case.
-                updateHtmlTable();
+                updateHtmlTable(sokobubbleHOF);
             }
         } else {
             console.warn(`Unexpected message: ${msgId}`);
