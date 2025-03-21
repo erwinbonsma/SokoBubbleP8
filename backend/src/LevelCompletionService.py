@@ -3,6 +3,7 @@ import logging
 
 from common import (
     bad_request,
+    check_table_id,
     request_handled,
     server_error,
     service_unavailable,
@@ -41,7 +42,7 @@ def handle_level_completion_post(event, context):
     request_json = json.loads(event["body"])
     try:
         level_completion = LevelCompletion.from_json(request_json)
-        table_id = request_json.get("tableId", DEFAULT_TABLE_ID)
+        table_id = check_table_id(request_json.get("tableId", DEFAULT_TABLE_ID))
     except KeyError as e:
         return bad_request(f"Missing key: {str(e)}")
     except ValueError as e:
@@ -57,7 +58,7 @@ def handle_level_completion_post(event, context):
     try:
         item = try_update_hof_entries(table_id, level_completion)
 
-        try_update_player_score(level_completion)
+        try_update_player_score(table_id, level_completion)
     except DatabaseError as e:
         return server_error(str(e))
 

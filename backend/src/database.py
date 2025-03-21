@@ -24,12 +24,12 @@ def raise_error(msg, ex):
     raise DatabaseError(f"{msg}: {ex}")
 
 
-def put_player_score(lc: LevelCompletion):
+def put_player_score(table_id: str, lc: LevelCompletion):
     logger.info(f"Adding new player score entry")
     try:
         item = {
             "PKEY": {"S": f"Player#{lc.player}"},
-            "SKEY": {"S": f"LevelId={lc.level_id}"},
+            "SKEY": {"S": f"Table={table_id},LevelId={lc.level_id}"},
             "UpdateTime": {"S": lc.update_time},
             "MoveCount": {"N": str(lc.move_count)},
             "MoveHistory": {"S": lc.move_history},
@@ -44,14 +44,14 @@ def put_player_score(lc: LevelCompletion):
         raise_error("Failed top create initial score entry", e)
 
 
-def try_update_player_score(lc: LevelCompletion):
+def try_update_player_score(table_id: str, lc: LevelCompletion):
     try:
         logger.info(f"Conditionally updating player score")
         client.update_item(
             TableName=TABLE_NAME,
             Key={
                 "PKEY": {"S": f"Player#{lc.player}"},
-                "SKEY": {"S": f"LevelId={lc.level_id}"},
+                "SKEY": {"S": f"Table={table_id},LevelId={lc.level_id}"},
             },
             UpdateExpression=(
                 "SET UpdateTime = :datetime, MoveCount = :move_count, MoveHistory = :move_history"
@@ -70,11 +70,15 @@ def try_update_player_score(lc: LevelCompletion):
         if e.response['Error']['Code'] == "ConditionalCheckFailedException":
             if "Item" in e.response:
                 logger.info("Did not improve player score")
+
+                return False
             else:
                 logger.info("No entry exists yet")
-                put_player_score(lc)
+                put_player_score(table_id, lc)
         else:
             raise_error("Failed to update player score", e)
+
+    return True
 
 
 def put_hof_entry(table_id: str, skey: str, lc: LevelCompletion):

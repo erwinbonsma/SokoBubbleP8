@@ -4,7 +4,7 @@ import os
 import boto3
 from botocore.exceptions import ClientError
 
-from common import bad_request, request_handled, server_error, DEFAULT_TABLE_ID
+from common import bad_request, check_table_id, request_handled, server_error, DEFAULT_TABLE_ID
 
 STAGE = os.environ.get("STAGE", "dev")
 TABLE_NAME = f"Sokobubble-{STAGE}"
@@ -16,7 +16,7 @@ logger.setLevel(logging.INFO)
 
 def handle_hall_of_fame_get(event, context):
     params = event.get("queryStringParameters", {})
-    id = params.get("id", DEFAULT_TABLE_ID)
+    id = check_table_id(params.get("id", DEFAULT_TABLE_ID))
     key = params.get("key", "index")
 
     logger.info(f"Request for Hall of Fame {id=}, {key=}")

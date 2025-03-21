@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 import datetime
+import itertools
 import json
 from typing import Optional
 
@@ -8,6 +9,17 @@ DEFAULT_TABLE_ID = "global"
 NUM_LEVELS = 24
 MIN_MOVE_COUNT = 20
 MAX_MOVE_COUNT = 999
+
+MAX_TABLE_ID_LEN = 8
+
+VALID_ID_CHARS = set(
+    itertools.chain(
+        (chr(ord('a') + i) for i in range(26)),
+        (chr(ord('A') + i) for i in range(26)),
+        (chr(ord('0') + i) for i in range(10)),
+        "-_"
+    )
+)
 
 
 @dataclass
@@ -71,3 +83,35 @@ def server_error(body=None):
 
 def service_unavailable(body=None):
     return lambda_responder(body, 503)
+
+
+def check_id(s, max_len):
+    """
+    >>> check_id("abcd", 6)
+    'abcd'
+
+    >>> check_id("abcdefgh", 6)
+    Traceback (most recent call last):
+       ...
+    ValueError: ID is too long
+
+    >>> check_id("1+2", 6)
+    Traceback (most recent call last):
+       ...
+    ValueError: Invalid characters
+
+    """
+    if len(s) > max_len:
+        raise ValueError("ID is too long")
+    if len(set(s).difference(VALID_ID_CHARS)) > 0:
+        raise ValueError("Invalid characters")
+    return s
+
+
+def check_table_id(table_id):
+    return check_id(table_id, MAX_TABLE_ID_LEN)
+
+
+if __name__ == '__main__':
+    import doctest
+    doctest.testmod()
