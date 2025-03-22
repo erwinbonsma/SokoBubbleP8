@@ -1,22 +1,22 @@
 import logging
-import os
 
-import boto3
-from botocore.exceptions import ClientError
+from common import (
+    bad_request,
+    check_table_id,
+    request_handled,
+    server_error,
+    DEFAULT_TABLE_ID
+)
+from database import DatabaseError, get_best_level_scores, get_total_scores
 
-from common import bad_request, check_table_id, request_handled, server_error, DEFAULT_TABLE_ID
 
-STAGE = os.environ.get("STAGE", "dev")
-TABLE_NAME = f"Sokobubble-{STAGE}"
-
-client = boto3.client("dynamodb", endpoint_url=os.environ.get("DYNAMODB_ENDPOINT"))
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 
 
 def handle_hall_of_fame_get(event, context):
     params = event.get("queryStringParameters", {})
-    id = check_table_id(params.get("id", DEFAULT_TABLE_ID))
+    table_id = check_table_id(params.get("id", DEFAULT_TABLE_ID))
     key = params.get("key", "index")
 
     logger.info(f"Request for Hall of Fame {id=}, {key=}")
@@ -28,27 +28,18 @@ def handle_hall_of_fame_get(event, context):
         return bad_request(f"Unknown key '{key}'")
 
     try:
-        response = client.query(
-            TableName=TABLE_NAME,
-            KeyConditionExpression="PKEY = :pkey AND begins_with(SKEY, :skey_prefix)",
-            ExpressionAttributeValues={
-                ":pkey": {"S": f"HallOfFame#{id}"},
-                ":skey_prefix": {"S": skey}
-            }
+        best_level_scores = get_best_level_scores(table_id, skey)
+
+        total_scores = get_total_scores(table_id)
+        total_scores.sort(
+            key=lambda x: (x["moveTotal"], x["updateTime"])
         )
-        logger.debug(f"{response=}")
-    except ClientError as e:
-        logger.warning(str(e))
+    except DatabaseError as e:
         return server_error(str(e))
 
     return request_handled({
-        "hallOfFame": {
-            int(item["SKEY"]["S"][len(skey):]): {
-                "player": item["Player"]["S"],
-                "moveCount": int(item["MoveCount"]["N"])
-            }
-            for item in response["Items"]
-        }
+        "hallOfFame": best_level_scores,
+        "totalScores": total_scores[:10],
     })
 
 

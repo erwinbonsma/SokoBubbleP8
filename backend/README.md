@@ -34,12 +34,10 @@ Player Totals
     - id: The table ID, allowing competition among a smaller group of players
     - level set version: Version that represents the set of level IDs that are
       summed for this total.
-- SKEY = "Total={zero-padded total}#{datetime of last improvement}"
-    - The datetime ensures each player's entry is unique (as only single log
-      entry is accepted per second)
-    - It also ensures that entries are sorted correctly in case of ties:
-      Lower scores and earlier updates are preferred
-- Player = "{playername}"
+- SKEY = "Player={player}
+    - Ensures only single entry per player
+- MoveTotal = "{moves}"
+- UpdateTime = "{datetime of last improvement}"
 
 # REST API
 

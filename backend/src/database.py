@@ -25,6 +25,52 @@ def raise_error(msg, ex):
     raise DatabaseError(f"{msg}: {ex}")
 
 
+def get_total_scores(table_id: str):
+    try:
+        response = client.query(
+            TableName=TABLE_NAME,
+            KeyConditionExpression="PKEY = :pkey AND begins_with(SKEY, :skey_prefix)",
+            ExpressionAttributeValues={
+                ":pkey": {"S": f"PlayerTotal#{table_id}#{LEVEL_ID_SET_VERSION}"},
+                ":skey_prefix": {"S": "Player="},
+            },
+        )
+        logger.info(f"{response=}")
+    except ClientError as e:
+        raise_error("Best total scores query failed", e)
+
+    return [
+        {
+            "player": item["SKEY"]["S"][len("Player="):],
+            "moveTotal": int(item["MoveTotal"]["N"]),
+            "updateTime": item["UpdateTime"]["S"]
+        }
+        for item in response["Items"]
+    ]
+
+
+def get_best_level_scores(table_id: str, skey: str = "LevelId="):
+    try:
+        response = client.query(
+            TableName=TABLE_NAME,
+            KeyConditionExpression="PKEY = :pkey AND begins_with(SKEY, :skey_prefix)",
+            ExpressionAttributeValues={
+                ":pkey": {"S": f"HallOfFame#{table_id}"},
+                ":skey_prefix": {"S": skey}
+            }
+        )
+    except ClientError as e:
+        raise_error("Best level scores query failed", e)
+
+    return {
+        int(item["SKEY"]["S"][len(skey):]): {
+            "player": item["Player"]["S"],
+            "moveCount": int(item["MoveCount"]["N"])
+        }
+        for item in response["Items"]
+    }
+
+
 def calculate_player_total(table_id: str, player: str) -> int:
     skey_prefix = f"Table={table_id},"
 
@@ -59,12 +105,13 @@ def update_player_total(table_id: str, player: str, update_time: str, total: int
     try:
         item = {
             "PKEY": {"S": f"PlayerTotal#{table_id}#{LEVEL_ID_SET_VERSION}"},
-            # SKEY such that players are sorted by raking
-            "SKEY": {"S": f"Total={total:06}#{update_time}"},
-            "Player": {"S": player},
+            "SKEY": {"S": f"Player={player}"},
+            "MoveTotal": {"N": str(total)},
+            "UpdateTime": {"S": update_time},
         }
 
         client.put_item(TableName=TABLE_NAME, Item=item)
+        logger.info(item)
     except ClientError as e:
         raise_error("Failed top update player total", e)
 
