@@ -54,6 +54,43 @@ function updateTotalHtmlTable(hof) {
     updateHtmlTablePartial(hof, "HallOfFame-Totals", 1, hofSizeTotals);
 }
 
+function updateBestLevelScores(levelRecord, levelIndex) {
+    const levelEntry = bestLevelScores[levelIndex - 1];
+    levelEntry[0] = levelRecord.player;
+    levelEntry[1] = levelRecord.moveCount;
+
+    // Return (possibly updated) Hall of Fame
+    sendLevelScores();
+    updateLevelHtmlTable(bestLevelScores);
+}
+
+function updateBestTotalScores(totalScore, player) {
+    if (totalScore === undefined
+        || totalScore >= bestTotalScores[bestTotalScores.length - 1]
+    ) return;
+
+    let updated = false;
+    // Update existing entry if player is already in the Hall of Fame
+    for (let i = 0; i < bestTotalScores.length; ++i) {
+        if (bestTotalScores[i][0] === player) {
+            bestTotalScores[i][1] = totalScore;
+            updated = true;
+            break;
+        }
+    }
+
+    if (!updated) {
+        // Add player by replacing the last (worse) entry
+        bestTotalScores[bestTotalScores.length - 1] = [player, totalScore];
+    }
+
+    // Sort by score
+    bestTotalScores.sort((a, b) => a[1] - b[1]);
+
+    sendTotalScores();
+    updateTotalHtmlTable(bestTotalScores);
+}
+
 async function logLevelCompletion(solveDetails) {
     const body = JSON.stringify({ ...solveDetails, tableId });
 
@@ -92,14 +129,8 @@ async function logLevelCompletion(solveDetails) {
     const responseJson = await response.json(); //extract JSON from the http response
     console.info(responseJson);
 
-    const levelEntry = bestLevelScores[solveDetails.level - 1];
-    levelEntry[0] = responseJson.player;
-    levelEntry[1] = responseJson.moveCount;
-
-    // Return (possibly updated) Hall of Fame
-    sendLevelScores();
-
-    updateLevelHtmlTable(bestLevelScores);
+    updateBestLevelScores(responseJson.levelRecord, solveDetails.level);
+    updateBestTotalScores(responseJson.moveTotal, solveDetails.player);
 }
 
 function gpioRead() {
