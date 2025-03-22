@@ -59,6 +59,15 @@ def handle_level_completion_post(event, context):
 
     try:
         item = try_update_hof_entries(table_id, level_completion)
+        response = {
+            "level": level_completion.level,
+            "levelId": level_completion.level_id,
+            "levelRecord": {
+                "player": item["Player"]["S"],
+                "moveCount": int(item["MoveCount"]["N"]),
+                "updated": item["Improved"]
+            },
+        }
 
         improvement = try_update_player_score(table_id, level_completion)
         if improvement > 0:
@@ -66,16 +75,11 @@ def handle_level_completion_post(event, context):
             update_player_total(
                 table_id, level_completion.player, level_completion.update_time, total
             )
+            response["moveTotal"] = total
     except DatabaseError as e:
         return server_error(str(e))
 
-    return request_handled({
-        "level": level_completion.level,
-        "levelId": level_completion.level_id,
-        "player": item["Player"]["S"],
-        "moveCount": int(item["MoveCount"]["N"]),
-        "improved": item["Improved"]
-    })
+    return request_handled(response)
 
 
 def handler(event, context):
