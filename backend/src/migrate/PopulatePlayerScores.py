@@ -12,9 +12,11 @@ from common import (
     LevelCompletion,
 )
 from database import (
+    calculate_player_total,
     client,
     TABLE_NAME,
-    try_update_player_score
+    try_update_player_score,
+    update_player_total
 )
 
 
@@ -60,7 +62,7 @@ class ScoreEntry:
     table_id: Optional[str] = None
 
 
-def get_player_scores():
+def get_player_scores_from_old_log():
     try:
         response = client.query(
             TableName=TABLE_NAME,
@@ -116,15 +118,22 @@ def try_update_player_scores(player: str, level_index: int, score_entry: ScoreEn
 
 
 def populate_player_scores(event, context):
-    scores = get_player_scores()
-
-    # params = event.get("queryStringParameters", {})
-    # table_id = check_table_id(params.get("id", DEFAULT_TABLE_ID))
+    scores = get_player_scores_from_old_log()
 
     for player, ptable in scores.items():
         logger.info(f"{player=}")
+        table_ids = {DEFAULT_TABLE_ID}
+        last_update = None
         for level_index, score_entry in ptable.items():
             improved = try_update_player_scores(player, level_index, score_entry)
             logger.info(f"  {level_index=}: {score_entry} {improved=}")
+
+            table_ids.add(score_entry.table_id)
+            if last_update is None or score_entry.update_time > last_update:
+                last_update = score_entry.update_time
+
+        for table_id in table_ids:
+            total = calculate_player_total(table_id, player)
+            update_player_total(table_id, player, last_update, total)
 
     return request_handled()

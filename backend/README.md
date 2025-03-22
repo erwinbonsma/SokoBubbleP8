@@ -23,23 +23,23 @@ Level Hi-score
 
 Player Hi-scores
 - PKEY = "Player#{playername}"
-- SKEY = "LevelId={level ID}
+- SKEY = "Table={id},LevelId={level ID}
 - UpdateTime = "{datetime in seconds}"
 - MoveCount
 - MoveHistory = "{moves}"
     - E.g. "u2d3l2u2r2d3u3r2d2"
 
 Player Totals
-- PKEY = "PlayerTotal"
+- PKEY = "PlayerTotal#{id}#{level set version}"
+    - id: The table ID, allowing competition among a smaller group of players
+    - level set version: Version that represents the set of level IDs that are
+      summed for this total.
 - SKEY = "Total={zero-padded total}#{datetime of last improvement}"
     - The datetime ensures each player's entry is unique (as only single log
       entry is accepted per second)
     - It also ensures that entries are sorted correctly in case of ties:
       Lower scores and earlier updates are preferred
 - Player = "{playername}"
-Notes:
-- This table should be updated by a background service, as the active levels
-  that are considered for the Hall of Fame may change over time
 
 # REST API
 

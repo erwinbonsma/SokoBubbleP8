@@ -12,6 +12,11 @@ MAX_MOVE_COUNT = 999
 
 MAX_TABLE_ID_LEN = 8
 
+LEVEL_ID_SET_VERSION = 1
+LEVEL_ID_SET = [
+    1, 2, 3, 4, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 26
+]
+
 VALID_ID_CHARS = set(
     itertools.chain(
         (chr(ord('a') + i) for i in range(26)),

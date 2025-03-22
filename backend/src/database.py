@@ -4,7 +4,7 @@ import os
 import boto3
 from botocore.exceptions import ClientError
 
-from common import LevelCompletion
+from common import LEVEL_ID_SET, LEVEL_ID_SET_VERSION, MAX_MOVE_COUNT, LevelCompletion
 
 STAGE = os.environ.get("STAGE", "dev")
 TABLE_NAME = f"Sokobubble-{STAGE}"
@@ -12,6 +12,7 @@ TABLE_NAME = f"Sokobubble-{STAGE}"
 client = boto3.client("dynamodb", endpoint_url=os.environ.get("DYNAMODB_ENDPOINT"))
 
 logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
 
 
 class DatabaseError(Exception):
@@ -22,6 +23,50 @@ class DatabaseError(Exception):
 def raise_error(msg, ex):
     logger.error(msg, ex)
     raise DatabaseError(f"{msg}: {ex}")
+
+
+def calculate_player_total(table_id: str, player: str) -> int:
+    skey_prefix = f"Table={table_id},"
+
+    try:
+        response = client.query(
+            TableName=TABLE_NAME,
+            KeyConditionExpression="PKEY = :pkey AND begins_with(SKEY, :skey_prefix)",
+            ExpressionAttributeValues={
+                ":pkey": {"S": f"Player#{player}"},
+                ":skey_prefix": {"S": skey_prefix}
+            }
+        )
+        logger.debug(f"{response=}")
+    except ClientError as e:
+        raise_error("Failed to get player scores", e)
+
+    skey_prefix += "LevelId="
+    scores = {
+        int(item["SKEY"]["S"][len(skey_prefix):]): int(item["MoveCount"]["N"])
+        for item in response["Items"]
+    }
+    logger.info(scores)
+
+    total = sum(scores.get(level_id, MAX_MOVE_COUNT) for level_id in LEVEL_ID_SET)
+    logger.info(f"Total for {player} in {table_id} is {total}")
+
+    return total
+
+
+def update_player_total(table_id: str, player: str, update_time: str, total: int):
+    logger.info(f"Set player total for {player} to {total}")
+    try:
+        item = {
+            "PKEY": {"S": f"PlayerTotal#{table_id}#{LEVEL_ID_SET_VERSION}"},
+            # SKEY such that players are sorted by raking
+            "SKEY": {"S": f"Total={total:06}#{update_time}"},
+            "Player": {"S": player},
+        }
+
+        client.put_item(TableName=TABLE_NAME, Item=item)
+    except ClientError as e:
+        raise_error("Failed top update player total", e)
 
 
 def put_player_score(table_id: str, lc: LevelCompletion):
@@ -47,7 +92,7 @@ def put_player_score(table_id: str, lc: LevelCompletion):
 def try_update_player_score(table_id: str, lc: LevelCompletion):
     try:
         logger.info(f"Conditionally updating player score")
-        client.update_item(
+        response = client.update_item(
             TableName=TABLE_NAME,
             Key={
                 "PKEY": {"S": f"Player#{lc.player}"},
@@ -62,23 +107,32 @@ def try_update_player_score(table_id: str, lc: LevelCompletion):
                 ":move_history": {"S": lc.move_history},
                 ":datetime": {"S": lc.update_time},
             },
-            ReturnValues="ALL_NEW",
+            ReturnValues="UPDATED_OLD",
             ReturnValuesOnConditionCheckFailure="ALL_OLD"
         )
-        logger.info(f"Updated player score")
+        item = response["Attributes"]
+        logger.info(item)
+        improvement = int(item["MoveCount"]["N"]) - lc.move_count
+
+        logger.info(f"Updated player score: {improvement=}")
+
+        return improvement
     except ClientError as e:
         if e.response['Error']['Code'] == "ConditionalCheckFailedException":
             if "Item" in e.response:
-                logger.info("Did not improve player score")
+                item = e.response["Item"]
+                delta = int(item["MoveCount"]["N"]) - lc.move_count
 
-                return False
+                logger.info(f"Did not improve player score: {delta=}")
+
+                return 0
             else:
                 logger.info("No entry exists yet")
                 put_player_score(table_id, lc)
+
+                return MAX_MOVE_COUNT - lc.move_count
         else:
             raise_error("Failed to update player score", e)
-
-    return True
 
 
 def put_hof_entry(table_id: str, skey: str, lc: LevelCompletion):
@@ -135,8 +189,8 @@ def try_update_hof_entry(table_id: str, skey: str, lc: LevelCompletion):
             ReturnValues="ALL_NEW",
             ReturnValuesOnConditionCheckFailure="ALL_OLD"
         )
-        logger.info(f"Updated HOF entry: {response=}")
         item = response["Attributes"]
+        logger.info(f"Updated HOF entry: {item=}")
 
         logger.info(f"Improved hi-score")
         item["Improved"] = True

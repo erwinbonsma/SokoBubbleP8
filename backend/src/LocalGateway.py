@@ -16,6 +16,8 @@ app.logger.setLevel(logging.INFO)
 
 for logger_name in [
     app.name,
+    "common",
+    "database",
     "HallOfFameService",
     "LevelCompletionService",
     "migrate.CopyOldHofEntries",

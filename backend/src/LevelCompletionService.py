@@ -12,9 +12,11 @@ from common import (
 )
 from database import (
     DatabaseError,
+    calculate_player_total,
     store_log_entry,
     try_update_hof_entry,
     try_update_player_score,
+    update_player_total,
 )
 
 logger = logging.getLogger(__name__)
@@ -58,7 +60,12 @@ def handle_level_completion_post(event, context):
     try:
         item = try_update_hof_entries(table_id, level_completion)
 
-        try_update_player_score(table_id, level_completion)
+        improvement = try_update_player_score(table_id, level_completion)
+        if improvement > 0:
+            total = calculate_player_total(table_id, level_completion.player)
+            update_player_total(
+                table_id, level_completion.player, level_completion.update_time, total
+            )
     except DatabaseError as e:
         return server_error(str(e))
 
