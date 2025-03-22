@@ -1918,7 +1918,7 @@ function _init()
  _statsview=statsview:new()
  _helpview=helpview:new()
  _gpio=gpio:new(
-  received_hof,post_levels
+  received_msg,post_levels
  )
  init_dummy_hof()
  
@@ -2440,17 +2440,23 @@ function textedit:update()
  t.s=s
 end
 
-function received_hof(s)
- printh("received: "..s)
+function parse_hof(s)
  local f=split(s)
- if #f!=48 then
-  printh("unexpected hof size")
-  return
- end
- hof_lvl={}
+ local hof={}
  for i=1,#f,2 do
   local nmov=tonum(f[i+1])
-  add(hof_lvl,{f[i],nmov})
+  add(hof,{f[i],nmov})
+ end
+ return hof
+end
+
+function received_msg(s)
+ printh("received: "..s)
+ local hdr=sub(s,1,4)
+ if hdr=="lvl:" then
+  hof_lvl=parse_hof(sub(s,5))
+ elseif hdr=="tot:" then
+  hof_tot=parse_hof(sub(s,5))
  end
 end
 

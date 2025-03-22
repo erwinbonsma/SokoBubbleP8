@@ -12,23 +12,25 @@ const tableId = "live-01";
 const gpioReadAddress = 0;
 const gpioWriteAddress = 64;
 const gpioBlockSize = 63;
-const hofSize = 24;
+const hofSizeLevels = 24;
+const hofSizeTotals = 10;
 
 // This should match what is sent from PICO-8 client after bootstrap.
 // It is duplicated here so that the Hall of Fame can be shown on the HTML page
 // when the PICO-8 game is not (yet) started.
 var levelIds = [1,2,3,4,6,7,24,8,9,16,17,21,23,10,11,15,12,14,20,26,13,18,19,22];
 
-var sokobubbleHOF = Array(hofSize).fill(null).map(_ => ["-", 999]);
+var bestLevelScores = Array(hofSizeLevels).fill(null).map(_ => ["-", 999]);
+var bestTotalScores = Array(hofSizeTotals).fill(null).map(_ => ["-", 24000]);
 var gpioConnected = false;
 var gpioTxtIn = "";
-var gpioTxtOut = undefined;
+var gpioTxtOut = [];
 
 function sleep(timeMs) {
     return new Promise((resolve) => setTimeout(resolve, timeMs));
 }
 
-function updateHtmlTablePartial(hof, minLevel, maxLevel, elementId) {
+function updateHtmlTablePartial(hof, elementId, minLevel, maxLevel) {
     var s = '<table class="hof-table">';
     for (let i = minLevel; i <= maxLevel; i++) {
         const [player, score] = hof[i - 1];
@@ -43,9 +45,13 @@ function updateHtmlTablePartial(hof, minLevel, maxLevel, elementId) {
     document.getElementById(elementId).innerHTML = s;
 }
 
-function updateHtmlTable(hof) {
-    updateHtmlTablePartial(hof, 1, 12, "HallOfFame-Left");
-    updateHtmlTablePartial(hof, 13, 24, "HallOfFame-Right");
+function updateLevelHtmlTable(hof) {
+    updateHtmlTablePartial(hof, "HallOfFame-Levels-Left", 1, 12);
+    updateHtmlTablePartial(hof, "HallOfFame-Levels-Right", 13, 24);
+}
+
+function updateTotalHtmlTable(hof) {
+    updateHtmlTablePartial(hof, "HallOfFame-Totals", 1, hofSizeTotals);
 }
 
 async function logLevelCompletion(solveDetails) {
@@ -84,19 +90,16 @@ async function logLevelCompletion(solveDetails) {
     }
 
     const responseJson = await response.json(); //extract JSON from the http response
+    console.info(responseJson);
 
-    const levelEntry = sokobubbleHOF[solveDetails.level - 1];
+    const levelEntry = bestLevelScores[solveDetails.level - 1];
     levelEntry[0] = responseJson.player;
     levelEntry[1] = responseJson.moveCount;
 
-    if (gpioTxtOut !== undefined) {
-        console.warn("Cannot send response via GPIO")
-    } else {
-        // Return (possibly updated) Hall of Fame
-        gpioTxtOut = makeHOFString(sokobubbleHOF);
-    }
+    // Return (possibly updated) Hall of Fame
+    sendLevelScores();
 
-    updateHtmlTable(sokobubbleHOF);
+    updateLevelHtmlTable(bestLevelScores);
 }
 
 function gpioRead() {
@@ -125,7 +128,7 @@ function gpioRead() {
                 });
             }
         } else if (msgId === "levels") {
-            if (args.length != hofSize + 1) {
+            if (args.length != hofSizeLevels + 1) {
                 console.warn("Unexpected length");
             } else {
                 levelIds = Array.from(args.slice(1).map(x => parseInt(x)));
@@ -133,7 +136,7 @@ function gpioRead() {
 
                 // This should not have impacted the Hall of Fame, but
                 // updating just in case.
-                updateHtmlTable(sokobubbleHOF);
+                updateLevelHtmlTable(bestLevelScores);
             }
         } else {
             console.warn(`Unexpected message: ${msgId}`);
@@ -152,15 +155,16 @@ function gpioRead() {
 }
 
 function gpioWrite() {
-    const n = Math.min(gpioBlockSize, gpioTxtOut.length);
+    const txtOut = gpioTxtOut[0];
+    const n = Math.min(gpioBlockSize, txtOut.length);
     if (n == 0) {
         pico8_gpio[gpioWriteAddress] = 128;
-        gpioTxtOut = undefined;
+        gpioTxtOut = gpioTxtOut.slice(1);
     } else {
         for (var i = 1; i <= n; i++) {
-            pico8_gpio[gpioWriteAddress + i] = gpioTxtOut.charCodeAt(i - 1);
+            pico8_gpio[gpioWriteAddress + i] = txtOut.charCodeAt(i - 1);
         }
-        gpioTxtOut = gpioTxtOut.substring(n);
+        gpioTxtOut[0] = txtOut.substring(n);
         pico8_gpio[gpioWriteAddress] = n;
         console.info(`GPIO: Wrote ${n} characters`);
     }
@@ -170,31 +174,52 @@ function gpioUpdate() {
     if (pico8_gpio[gpioReadAddress]) {
         gpioRead();
     }
-    if (gpioConnected && pico8_gpio[gpioWriteAddress] == 0 && gpioTxtOut != undefined) {
+    if (gpioConnected && pico8_gpio[gpioWriteAddress] == 0 && gpioTxtOut.length > 0) {
         gpioWrite();
     }
 }
 
-function makeHOFString(hof) {
-    return hof.map(v => v.join()).join();
+function sendScores(hof, header) {
+    const msg = header + hof.map(v => v.join()).join();
+    console.info(msg);
+    gpioTxtOut.push(msg);
+}
+
+function sendLevelScores() {
+    sendScores(bestLevelScores, "lvl:");
+}
+
+function sendTotalScores() {
+    sendScores(bestTotalScores, "tot:");
+}
+
+function handleBestLevelScores(scores) {
+    for (let i = 0; i < hofSizeLevels; i++) {
+        const entry = scores[levelIds[i].toString()];
+        if (entry !== undefined) {
+            bestLevelScores[i] = [entry.player, entry.moveCount];
+        }
+    }
+
+    sendLevelScores();
+    updateLevelHtmlTable(bestLevelScores);
+}
+
+function handleBestTotalScores(scores) {
+    for (let i = 0; i < Math.min(scores.length, hofSizeTotals); i++) {
+        bestTotalScores[i] = [scores[i].player, scores[i].moveTotal];
+    }
+
+    sendTotalScores();
+    updateTotalHtmlTable(bestTotalScores);
 }
 
 async function fetchHallOfFame() {
     const response = await fetch(`${hofServiceUrl}?id=${tableId}&key=id`);
     const responseJson = await response.json(); //extract JSON from the http response
-    const hof = responseJson.hallOfFame;
 
-    for (let i = 0; i < hofSize; i++) {
-        const entry = hof[levelIds[i].toString()];
-        if (entry !== undefined) {
-            sokobubbleHOF[i] = [entry.player, entry.moveCount];
-        }
-    }
-
-    gpioTxtOut = makeHOFString(sokobubbleHOF);
-    console.info(`Fetched Hall of Fame: ${gpioTxtOut}`);
-
-    updateHtmlTable(sokobubbleHOF);
+    handleBestLevelScores(responseJson.hallOfFame);
+    handleBestTotalScores(responseJson.totalScores);
 }
 
 window.setInterval(gpioUpdate, 100);
