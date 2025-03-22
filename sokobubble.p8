@@ -183,6 +183,18 @@ function bubble_pal(idx)
  end
 end
 
+function pad_str(s,len,rpad,ch)
+ ch=ch or " "
+ while #s<len do
+  if rpad then
+   s=s..ch
+  else
+   s=ch..s
+  end
+ end
+ return s
+end
+
 function score_str(
  lvl_idx,score
 )
@@ -868,7 +880,7 @@ statsview={}
 function statsview:new()
  local o=new_object(self)
 
- o.global=false
+ o.view_idx=1
 
  return o
 end
@@ -877,10 +889,16 @@ function statsview:update()
  if btnp(❎) then
   self.hide_callback()
  end
- if hof and (
-  btnp(⬅️) or btnp(➡️)
- ) then
-  self.global=not self.global
+ if hof_lvl then
+  if btnp(⬅️) then
+   self.view_idx=(
+    1+(self.view_idx+1)%3
+   )
+  elseif btnp(➡️) then
+   self.view_idx=(
+    1+self.view_idx%3
+   )
+  end
  end
 end
 
@@ -889,46 +907,70 @@ function statsview:draw()
 
  spr(134,32,0,8,2)
 
- rect3d(1,20,126,121,1,13,2)
+ rect3d(1,16,126,121,1,13,2)
 
- local draw_entry=function(
-  idx,name,score
+ local make_entry=function(
+  idx,name,score,score_len
  )
-  local x=((idx-1)\12)*64
-  local y=((idx-1)%12)*7+22
-  print(
-   ""..idx.."."..name,
-   x+6-(idx>=10 and 4 or 0),y,13
+  return (
+   pad_str(""..idx,2).."."..
+   pad_str(name,8,true).." "..
+   pad_str(""..score,score_len)
   )
-  local s=""..score
-  print(s,x+62-#s*4,y,13)
  end
 
- local total=0
- for i=1,#level_defs-1 do
-  local name,score
-  if self.global then
-   name=hof[i][1]
-   score=hof[i][2]
-  else
-   name=level_defs[i].name
-   score=_stats:get_hi(i)
+ if self.view_idx<3 then
+  local total=0
+  for i=1,#level_defs-1 do
+   local name,score
+   if self.view_idx==1 then
+    name=level_defs[i].name
+    score=_stats:get_hi(i)
+   else
+    name=hof_lvl[i][1]
+    score=hof_lvl[i][2]
+   end
+   local x=((i-1)\12)*64+2
+   local y=((i-1)%12)*7+30
+   print(
+    make_entry(i,name,score,3),
+    x,y,13
+   )
+   total+=score
   end
-  draw_entry(i,name,score)
-  total+=score
+
+  print("total",78,115,12)
+  local s=""..total
+  print(s,126-4*#s,115)
+ else
+  local y=30
+  for i,e in pairs(hof_tot) do
+   if i<=3 and e[2]<10000 then
+    printbig(sub(
+     make_entry(i,e[1],e[2],4)
+    ,2),4,y,13)
+    y+=12
+   else
+    print(make_entry(
+     i,e[1],e[2],5
+    ),28,y,13)
+    y+=8
+   end
+  end
  end
 
- local s=""..total
- printbig(s,66,109,12)
- print("total",42,108,12)
- print("moves",42,115,12)
+ print(
+  self.view_idx<3
+  and "level scores"
+  or "total scores",44,20,12
+ )
 
- if hof then
-  spr(142,10,107,1,2)
-  spr(143,30,107,1,2)
+ if hof_lvl then
+  spr(142,21,15,1,2)
+  spr(143,94,15,1,2)
   spr(
-   self.global and 11 or 10,
-   20,110
+   self.view_idx>1 and 11 or 10,
+   32,19
   )
  end
 end
@@ -999,6 +1041,9 @@ function helpview:draw()
  print("retry",107,115,12)
  print("/exit",107,121,12)
 end
+
+-->8
+--box, undo_stack & player
 
 box={}
 function box:new(x,y,c)
@@ -1075,9 +1120,6 @@ function undo_stack:pop()
 
  return obj
 end
-
--->8
---player
 
 player={}
 function player:new(x,y,bubble)
@@ -1878,6 +1920,7 @@ function _init()
  _gpio=gpio:new(
   received_hof,post_levels
  )
+ init_dummy_hof()
  
  music(0)
 
@@ -1891,6 +1934,21 @@ end
 
 function _draw()
  scene:draw()
+end
+
+function init_dummy_hof()
+ hof_lvl={}
+ hof_tot={}
+ for i=1,24 do
+  add(hof_lvl,{"player 1", 999})
+  if i<=10 then
+   local id=" "..i
+   add(hof_tot,{
+    "player"..sub(id,#id-1),
+    5000+i*1000
+   })
+  end
+ end
 end
 
 function start_level(
@@ -2389,12 +2447,10 @@ function received_hof(s)
   printh("unexpected hof size")
   return
  end
- hof={}
- hof_total=0
+ hof_lvl={}
  for i=1,#f,2 do
   local nmov=tonum(f[i+1])
-  add(hof,{f[i],nmov})
-  hof_total+=nmov
+  add(hof_lvl,{f[i],nmov})
  end
 end
 
