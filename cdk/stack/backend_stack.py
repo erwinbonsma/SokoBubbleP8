@@ -57,6 +57,16 @@ class BackendStack(Stack):
         )
         main_table.grant_read_data(query_handler)
 
+        # Not exposed: Invoke via AWS console
+        update_totals_lambda = _lambda.Function(
+            self, 'UpdateTotals',
+            **shared_lambda_cfg,
+            code=_lambda.Code.from_asset('../backend/src'),
+            handler='migrate.UpdateTotals.update_totals',
+            timeout=Duration.seconds(30),
+        )
+        main_table.grant_read_write_data(update_totals_lambda)
+
         # TODO: Remove migration lambda
         hof_migration_lambda = _lambda.Function(
             self, 'CopyOldHofEntries',
