@@ -1,6 +1,7 @@
 import os
 from aws_cdk import (
     CfnOutput,
+    Duration,
     Stack,
     aws_dynamodb as dynamodb,
     aws_lambda as _lambda
@@ -55,6 +56,25 @@ class BackendStack(Stack):
             handler='QueryService.handler',
         )
         main_table.grant_read_data(query_handler)
+
+        # TODO: Remove migration lambda
+        hof_migration_lambda = _lambda.Function(
+            self, 'CopyOldHofEntries',
+            **shared_lambda_cfg,
+            code=_lambda.Code.from_asset('../backend/src'),
+            handler='migrate.CopyOldHofEntries.copy_old_hof_entries',
+        )
+        main_table.grant_read_write_data(hof_migration_lambda)
+
+        # TODO: Remove migration lambda
+        populate_player_scores_lambda = _lambda.Function(
+            self, 'PopulatePlayerScores',
+            **shared_lambda_cfg,
+            code=_lambda.Code.from_asset('../backend/src'),
+            handler='migrate.PopulatePlayerScores.populate_player_scores',
+            timeout=Duration.seconds(30),
+        )
+        main_table.grant_read_write_data(populate_player_scores_lambda)
 
         log_completion_url = log_completion_handler.add_function_url(
             auth_type=_lambda.FunctionUrlAuthType.NONE
