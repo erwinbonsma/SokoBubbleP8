@@ -1,11 +1,31 @@
-### Get default (global) Hall of Fame
+### Get default (global) Hall of Fame (deprecated)
 
 GET {{hall_of_fame_url}}?key=id HTTP/1.1
 content-type: application/json
 
-### Get custom Hall of Fame, by ID
+### Get custom Hall of Fame, by ID (deprecated)
 
 GET {{hall_of_fame_url}}?id=custom&key=id HTTP/1.1
+content-type: application/json
+
+### Get default (global) Hall of Fame
+
+GET {{query_url}} HTTP/1.1
+content-type: application/json
+
+### Get custom Hall of Fame
+
+GET {{query_url}}?id=custom HTTP/1.1
+content-type: application/json
+
+### Get player scores from default (global) table
+
+GET {{query_url}}?name=hacker HTTP/1.1
+content-type: application/json
+
+### Get player scores from custom table
+
+GET {{query_url}}?name=hacker&id=custom HTTP/1.1
 content-type: application/json
 
 ### Sub-optimal global entry for Level 1

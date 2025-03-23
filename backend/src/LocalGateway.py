@@ -7,6 +7,7 @@ import logging
 
 from HallOfFameService import handle_hall_of_fame_get
 from LevelCompletionService import handle_level_completion_post
+from QueryService import handle_query_get
 from migrate.CopyOldHofEntries import copy_old_hof_entries
 from migrate.PopulatePlayerScores import populate_player_scores
 
@@ -20,6 +21,7 @@ for logger_name in [
     "database",
     "HallOfFameService",
     "LevelCompletionService",
+    "QueryService",
     "migrate.CopyOldHofEntries",
     "migrate.PopulatePlayerScores"
 ]:
@@ -38,6 +40,13 @@ def convert_response(response):
 @app.route('/hall_of_fame', methods=['GET'])
 def get_hall_of_fame():
     return convert_response(handle_hall_of_fame_get({
+        "queryStringParameters": request.args
+    }, None))
+
+
+@app.route('/scores', methods=['GET'])
+def get_scores():
+    return convert_response(handle_query_get({
         "queryStringParameters": request.args
     }, None))
 

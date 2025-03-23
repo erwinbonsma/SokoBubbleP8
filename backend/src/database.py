@@ -71,7 +71,7 @@ def get_best_level_scores(table_id: str, skey: str = "LevelId="):
     }
 
 
-def calculate_player_total(table_id: str, player: str) -> int:
+def get_player_scores(table_id: str, player: str):
     skey_prefix = f"Table={table_id},"
 
     try:
@@ -93,6 +93,12 @@ def calculate_player_total(table_id: str, player: str) -> int:
         for item in response["Items"]
     }
     logger.info(scores)
+
+    return scores
+
+
+def calculate_player_total(table_id: str, player: str) -> int:
+    scores = get_player_scores(table_id, player)
 
     total = sum(scores.get(level_id, MAX_MOVE_COUNT) for level_id in LEVEL_ID_SET)
     logger.info(f"Total for {player} in {table_id} is {total}")
