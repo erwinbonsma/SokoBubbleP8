@@ -1,11 +1,11 @@
 // Local deployment
 // const baseAddress = "http://127.0.0.1:8080";
-// const hofServiceUrl = `${baseAddress}/hall_of_fame`;
 // const logCompletionUrl = `${baseAddress}/level_completion`;
+// const queryServiceUrl = `${baseAddress}/scores`;
 
 // Cloud deployment
-const hofServiceUrl = "https://5acun5rqdkalcagdfpldl47aki0xkwwe.lambda-url.eu-west-1.on.aws/";
 const logCompletionUrl = "https://roe3f4jh6uab4rnvjzr7ajap2a0fjhxr.lambda-url.eu-west-1.on.aws/";
+const queryServiceUrl = "https://5hgdw6qke2znltx6foh6frlhuu0enbrz.lambda-url.eu-west-1.on.aws/";
 
 const tableId = "live-01";
 
