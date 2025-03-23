@@ -40,6 +40,14 @@ def try_update_hof_entries(table_id: str, lc: LevelCompletion):
     return item
 
 
+def try_update_player_scores(table_id: str, lc: LevelCompletion):
+    improvement = try_update_player_score(table_id, lc)
+    if improvement > 0 and table_id != DEFAULT_TABLE_ID:
+        try_update_player_score(DEFAULT_TABLE_ID, lc)
+
+    return improvement
+
+
 def handle_level_completion_post(event, context):
     request_json = json.loads(event["body"])
     try:
@@ -69,7 +77,8 @@ def handle_level_completion_post(event, context):
             },
         }
 
-        improvement = try_update_player_score(table_id, level_completion)
+        improvement = try_update_player_scores(table_id, level_completion)
+
         if improvement > 0:
             total = calculate_player_total(table_id, level_completion.player)
             update_player_total(
