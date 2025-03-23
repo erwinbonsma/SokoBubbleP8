@@ -888,17 +888,14 @@ end
 function statsview:update()
  if btnp(❎) then
   self.hide_callback()
- end
- if hof_lvl then
-  if btnp(⬅️) then
-   self.view_idx=(
-    1+(self.view_idx+1)%3
-   )
-  elseif btnp(➡️) then
-   self.view_idx=(
-    1+self.view_idx%3
-   )
-  end
+ elseif btnp(⬅️) then
+  self.view_idx=(
+   1+(self.view_idx+2)%4
+  )
+ elseif btnp(➡️) then
+  self.view_idx=(
+   1+self.view_idx%4
+  )
  end
 end
 
@@ -919,13 +916,15 @@ function statsview:draw()
   )
  end
 
- if self.view_idx<3 then
+ if self.view_idx<4 then
   local total=0
   for i=1,#level_defs-1 do
-   local name,score
+   local name=level_defs[i].name
+   local score
    if self.view_idx==1 then
-    name=level_defs[i].name
     score=_stats:get_hi(i)
+   elseif self.view_idx==2 then
+    score=onl_lvl[i]
    else
     name=hof_lvl[i][1]
     score=hof_lvl[i][2]
@@ -960,19 +959,17 @@ function statsview:draw()
  end
 
  print(
-  self.view_idx<3
+  self.view_idx<4
   and "level scores"
   or "total scores",44,20,12
  )
 
- if hof_lvl then
-  spr(142,21,15,1,2)
-  spr(143,94,15,1,2)
-  spr(
-   self.view_idx>1 and 11 or 10,
-   32,19
-  )
- end
+ spr(142,21,15,1,2)
+ spr(143,94,15,1,2)
+ spr(
+  self.view_idx>1 and 11 or 10,
+  32,19
+ )
 end
 
 helpview={}
@@ -1939,14 +1936,12 @@ end
 function init_dummy_hof()
  hof_lvl={}
  hof_tot={}
+ onl_lvl={}
  for i=1,24 do
-  add(hof_lvl,{"player 1", 999})
+  add(hof_lvl,{"-", 999})
+  add(onl_lvl,999)
   if i<=10 then
-   local id=" "..i
-   add(hof_tot,{
-    "player"..sub(id,#id-1),
-    5000+i*1000
-   })
+   add(hof_tot,{"-", 24000})
   end
  end
 end
