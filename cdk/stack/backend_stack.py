@@ -48,12 +48,24 @@ class BackendStack(Stack):
         )
         main_table.grant_read_data(hall_of_fame_handler)
 
+        query_handler = _lambda.Function(
+            self, 'QueryService',
+            **shared_lambda_cfg,
+            code=_lambda.Code.from_asset('../backend/src'),
+            handler='QueryService.handler',
+        )
+        main_table.grant_read_data(query_handler)
+
         log_completion_url = log_completion_handler.add_function_url(
             auth_type=_lambda.FunctionUrlAuthType.NONE
         )
         hall_of_fame_url = hall_of_fame_handler.add_function_url(
             auth_type=_lambda.FunctionUrlAuthType.NONE
         )
+        query_url = query_handler.add_function_url(
+            auth_type=_lambda.FunctionUrlAuthType.NONE
+        )
 
         CfnOutput(self, 'LogCompletionLambdaURL', value=log_completion_url.url)
         CfnOutput(self, 'HallOfFameLambdaURL', value=hall_of_fame_url.url)
+        CfnOutput(self, 'QueryLambdaURL', value=query_url.url)

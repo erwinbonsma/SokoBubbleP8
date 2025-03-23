@@ -16,8 +16,7 @@ logger.setLevel(logging.INFO)
 
 def handle_hof_query(table_id):
     try:
-        skey = "LevelId="
-        best_level_scores = get_best_level_scores(table_id, skey)
+        best_level_scores = get_best_level_scores(table_id)
 
         total_scores = get_total_scores(table_id)
         total_scores.sort(
