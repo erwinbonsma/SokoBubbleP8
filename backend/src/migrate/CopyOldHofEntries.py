@@ -4,7 +4,13 @@ import os
 import boto3
 from botocore.exceptions import ClientError
 
-from common import bad_request, request_handled, DEFAULT_TABLE_ID, server_error
+from common import (
+    DEFAULT_TABLE_ID,
+    LevelCompletion,
+    bad_request,
+    request_handled,
+    server_error
+)
 from LevelCompletionService import try_update_hof_entry
 
 STAGE = os.environ.get("STAGE", "dev")
@@ -57,22 +63,33 @@ def copy_old_hof_entries(event, context):
                 ":skey_prefix": {"S": "Level="}
             }
         )
-        logger.info(f"{response=}")
+        logger.debug(f"{response=}")
     except ClientError as e:
         logger.warning(str(e))
         return server_error(str(e))
 
     for item in response["Items"]:
+        logger.info(item)
+
         level_index = int(item["SKEY"]["S"][6:])
-        player = item["Player"]["S"]
-        move_count = int(item["MoveCount"]["N"])
-        level_id = LEVEL_IDX_MAP[level_index]
-        time_stamp = item["UpdateTime"]["S"]
+        if "MoveHistory" in item:
+            move_history = item["MoveHistory"]["S"]
+        else:
+            move_history = "unknown"
 
-        logger.info(f"{level_index} => {level_id}: {player}, {move_count}")
+        level_completion = LevelCompletion(
+            player=item["Player"]["S"],
+            level=level_index,
+            level_id=LEVEL_IDX_MAP[level_index],
+            update_time=item["UpdateTime"]["S"],
+            move_count=int(item["MoveCount"]["N"]),
+            move_history=move_history,
+        )
 
-        skey = f"LevelId={level_id}"
-        try_update_hof_entry(table_id, skey, time_stamp, player, move_count)
+        logger.info(f"{level_completion}")
+
+        skey = f"LevelId={level_completion.level_id}"
+        try_update_hof_entry(table_id, skey, level_completion)
 
     return request_handled()
 
