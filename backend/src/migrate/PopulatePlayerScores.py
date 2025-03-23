@@ -62,13 +62,13 @@ class ScoreEntry:
     table_id: Optional[str] = None
 
 
-def get_player_scores_from_old_log():
+def get_player_scores_from_log(pkey):
     try:
         response = client.query(
             TableName=TABLE_NAME,
             KeyConditionExpression="PKEY = :pkey",
             ExpressionAttributeValues={
-                ":pkey": {"S": f"Log"},
+                ":pkey": {"S": pkey},
             }
         )
     except ClientError as e:
@@ -118,7 +118,9 @@ def try_update_player_scores(player: str, level_index: int, score_entry: ScoreEn
 
 
 def populate_player_scores(event, context):
-    scores = get_player_scores_from_old_log()
+    pkey = event.get("queryStringParameters", {}).get("log_pkey", "Log")
+
+    scores = get_player_scores_from_log(pkey)
 
     for player, ptable in scores.items():
         logger.info(f"{player=}")

@@ -72,7 +72,9 @@ def wrap_copy_old_hof_entries():
 
 @app.route('/migrate/populate_player_scores', methods=['POST'])
 def wrap_populate_player_scores():
-    return convert_response(populate_player_scores(None, None))
+    return convert_response(populate_player_scores({
+        "queryStringParameters": request.args
+    }, None))
 
 # if __name__ == '__main__':
 #    app.run(debug=True, port=5000)
