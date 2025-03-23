@@ -21,7 +21,7 @@ class DatabaseError(Exception):
 
 
 def raise_error(msg, ex):
-    logger.error(msg, ex)
+    logger.error(msg, exc_info=ex)
     raise DatabaseError(f"{msg}: {ex}")
 
 
