@@ -2,6 +2,7 @@ import json
 import logging
 
 from common import (
+    LEVEL_MAPPING,
     bad_request,
     check_table_id,
     request_handled,
@@ -24,18 +25,9 @@ logger.setLevel(logging.INFO)
 
 
 def try_update_hof_entries(table_id: str, lc: LevelCompletion):
-    # Old storage (temporary - during transition)
-    skey = f"Level={lc.level}"
-    item = try_update_hof_entry(table_id, skey, lc)
+    item = try_update_hof_entry(table_id, lc)
     if item["Improved"] and table_id != DEFAULT_TABLE_ID:
-        try_update_hof_entry(DEFAULT_TABLE_ID, skey, lc)
-
-    if lc.level_id is not None:
-        # New storage
-        skey = f"LevelId={lc.level_id}"
-        item = try_update_hof_entry(table_id, skey, lc)
-        if item["Improved"] and table_id != DEFAULT_TABLE_ID:
-            try_update_hof_entry(DEFAULT_TABLE_ID, skey, lc)
+        try_update_hof_entry(DEFAULT_TABLE_ID, lc)
 
     return item
 

@@ -88,8 +88,7 @@ def copy_old_hof_entries(event, context):
 
         logger.info(f"{level_completion}")
 
-        skey = f"LevelId={level_completion.level_id}"
-        try_update_hof_entry(table_id, skey, level_completion)
+        try_update_hof_entry(table_id, level_completion)
 
     return request_handled()
 

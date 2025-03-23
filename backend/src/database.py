@@ -4,7 +4,7 @@ import os
 import boto3
 from botocore.exceptions import ClientError
 
-from common import LEVEL_ID_SET, LEVEL_ID_SET_VERSION, MAX_MOVE_COUNT, LevelCompletion
+from common import LEVEL_MAPPING, LEVEL_MAPPING_VERSION, MAX_MOVE_COUNT, LevelCompletion
 
 STAGE = os.environ.get("STAGE", "dev")
 TABLE_NAME = f"Sokobubble-{STAGE}"
@@ -31,7 +31,7 @@ def get_total_scores(table_id: str):
             TableName=TABLE_NAME,
             KeyConditionExpression="PKEY = :pkey AND begins_with(SKEY, :skey_prefix)",
             ExpressionAttributeValues={
-                ":pkey": {"S": f"PlayerTotal#{table_id}#{LEVEL_ID_SET_VERSION}"},
+                ":pkey": {"S": f"PlayerTotal#{table_id}#{LEVEL_MAPPING_VERSION}"},
                 ":skey_prefix": {"S": "Player="},
             },
         )
@@ -100,7 +100,7 @@ def get_player_scores(table_id: str, player: str):
 def calculate_player_total(table_id: str, player: str) -> int:
     scores = get_player_scores(table_id, player)
 
-    total = sum(scores.get(level_id, MAX_MOVE_COUNT) for level_id in LEVEL_ID_SET)
+    total = sum(scores.get(level_id, MAX_MOVE_COUNT) for level_id in LEVEL_MAPPING.values())
     logger.info(f"Total for {player} in {table_id} is {total}")
 
     return total
@@ -110,7 +110,7 @@ def update_player_total(table_id: str, player: str, update_time: str, total: int
     logger.info(f"Set player total for {player} to {total}")
     try:
         item = {
-            "PKEY": {"S": f"PlayerTotal#{table_id}#{LEVEL_ID_SET_VERSION}"},
+            "PKEY": {"S": f"PlayerTotal#{table_id}#{LEVEL_MAPPING_VERSION}"},
             "SKEY": {"S": f"Player={player}"},
             "MoveTotal": {"N": str(total)},
             "UpdateTime": {"S": update_time},
@@ -188,15 +188,15 @@ def try_update_player_score(table_id: str, lc: LevelCompletion):
             raise_error("Failed to update player score", e)
 
 
-def put_hof_entry(table_id: str, skey: str, lc: LevelCompletion):
+def put_hof_entry(table_id: str, lc: LevelCompletion):
     """
     Adds initial entry to given Hall of Fame
     """
-    logger.info(f"Adding new entry: {table_id=}, {skey=}")
+    logger.info(f"Adding new entry: {table_id=}, {lc.level_id}")
     try:
         item = {
             "PKEY": {"S": f"HallOfFame#{table_id}"},
-            "SKEY": {"S": skey},
+            "SKEY": {"S": f"LevelId={lc.level_id}"},
             "Player": {"S": lc.player},
             "UpdateTime": {"S": lc.update_time},
             "MoveCount": {"N": str(lc.move_count)},
@@ -213,7 +213,7 @@ def put_hof_entry(table_id: str, skey: str, lc: LevelCompletion):
         raise_error("Failed to create initial HOF entry", e)
 
 
-def try_update_hof_entry(table_id: str, skey: str, lc: LevelCompletion):
+def try_update_hof_entry(table_id: str, lc: LevelCompletion):
     """
     Tries to update entry for given Hall of Fame.
     Creates entry when one did not exist yet.
@@ -221,12 +221,12 @@ def try_update_hof_entry(table_id: str, skey: str, lc: LevelCompletion):
     The "improved" field indicates whether score was improved.
     """
     try:
-        logger.info(f"Conditionally updating HOF entry for {table_id=}, {skey=}")
+        logger.info(f"Conditionally updating HOF entry for {table_id=}, {lc.level_id}")
         response = client.update_item(
             TableName=TABLE_NAME,
             Key={
                 "PKEY": {"S": f"HallOfFame#{table_id}"},
-                "SKEY": {"S": skey},
+                "SKEY": {"S": f"LevelId={lc.level_id}"},
             },
             UpdateExpression=(
                 "SET Player = :player, UpdateTime = :datetime, "
@@ -255,7 +255,7 @@ def try_update_hof_entry(table_id: str, skey: str, lc: LevelCompletion):
                 item["Improved"] = False
             else:
                 logger.info("No entry exists yet")
-                item = put_hof_entry(table_id, skey, lc)
+                item = put_hof_entry(table_id, lc)
                 item["Improved"] = True
         else:
             raise_error("Failed to update hi-score", e)

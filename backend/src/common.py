@@ -12,10 +12,35 @@ MAX_MOVE_COUNT = 999
 
 MAX_TABLE_ID_LEN = 8
 
-LEVEL_ID_SET_VERSION = 1
-LEVEL_ID_SET = [
-    1, 2, 3, 4, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 26
-]
+# Note: When updating the level mapping also pdate the version to trigger
+# re-calculation of total scores.
+LEVEL_MAPPING_VERSION = 1
+LEVEL_MAPPING = {
+    1: 1,
+    2: 2,
+    3: 3,
+    4: 4,
+    5: 6,
+    6: 7,
+    7: 24,
+    8: 8,
+    9: 9,
+    10: 16,
+    11: 17,
+    12: 21,
+    13: 23,
+    14: 10,
+    15: 11,
+    16: 15,
+    17: 12,
+    18: 14,
+    19: 20,
+    20: 26,
+    21: 13,
+    22: 18,
+    23: 19,
+    24: 22,
+}
 
 VALID_ID_CHARS = set(
     itertools.chain(
@@ -37,6 +62,10 @@ class LevelCompletion:
     move_history: str
 
     def __post_init__(self):
+        if self.level_id is None:
+            # Can happen for old clients
+            raise ValueError("Missing level ID")
+
         if (
             len(self.player) > 8
             or (self.level < 1 or self.level > NUM_LEVELS)
