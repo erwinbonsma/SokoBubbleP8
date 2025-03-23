@@ -25,17 +25,17 @@ def raise_error(msg, ex):
     raise DatabaseError(f"{msg}: {ex}")
 
 
-def get_total_scores(table_id: str):
+def get_total_scores(table_id: str, mapping_version=LEVEL_MAPPING_VERSION):
     try:
         response = client.query(
             TableName=TABLE_NAME,
             KeyConditionExpression="PKEY = :pkey AND begins_with(SKEY, :skey_prefix)",
             ExpressionAttributeValues={
-                ":pkey": {"S": f"PlayerTotal#{table_id}#{LEVEL_MAPPING_VERSION}"},
+                ":pkey": {"S": f"PlayerTotal#{table_id}#{mapping_version}"},
                 ":skey_prefix": {"S": "Player="},
             },
         )
-        logger.info(f"{response=}")
+        logger.debug(f"{response=}")
     except ClientError as e:
         raise_error("Best total scores query failed", e)
 

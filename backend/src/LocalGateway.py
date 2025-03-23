@@ -10,6 +10,7 @@ from LevelCompletionService import handle_level_completion_post
 from QueryService import handle_query_get
 from migrate.CopyOldHofEntries import copy_old_hof_entries
 from migrate.PopulatePlayerScores import populate_player_scores
+from migrate.UpdateTotals import update_totals
 
 app = Flask(__name__)
 CORS(app)
@@ -23,7 +24,8 @@ for logger_name in [
     "LevelCompletionService",
     "QueryService",
     "migrate.CopyOldHofEntries",
-    "migrate.PopulatePlayerScores"
+    "migrate.PopulatePlayerScores",
+    "migrate.UpdateTotals",
 ]:
     logger = logging.getLogger(logger_name)
     logger.addHandler(default_handler)
@@ -73,6 +75,13 @@ def wrap_copy_old_hof_entries():
 @app.route('/migrate/populate_player_scores', methods=['POST'])
 def wrap_populate_player_scores():
     return convert_response(populate_player_scores({
+        "queryStringParameters": request.args
+    }, None))
+
+
+@app.route('/migrate/update_totals', methods=['POST'])
+def wrap_update_totals():
+    return convert_response(update_totals({
         "queryStringParameters": request.args
     }, None))
 

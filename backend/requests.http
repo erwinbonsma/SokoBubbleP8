@@ -67,3 +67,8 @@ content-type: application/json
     "moveHistory": "u2d4u3r2d2l3ru3d3l2u2",
     "tableId": "custom"
 }
+
+### Recalculate total scores
+
+POST {{update_totals_url}} HTTP/1.1
+content-type: application/json

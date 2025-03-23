@@ -14,7 +14,7 @@ MAX_TABLE_ID_LEN = 8
 
 # Note: When updating the level mapping also pdate the version to trigger
 # re-calculation of total scores.
-LEVEL_MAPPING_VERSION = 1
+LEVEL_MAPPING_VERSION = 2
 LEVEL_MAPPING = {
     1: 1,
     2: 2,
@@ -23,12 +23,12 @@ LEVEL_MAPPING = {
     5: 6,
     6: 7,
     7: 24,
-    8: 8,
-    9: 9,
-    10: 16,
-    11: 17,
-    12: 21,
-    13: 23,
+    8: 27,
+    9: 8,
+    10: 9,
+    11: 16,
+    12: 17,
+    13: 21,
     14: 10,
     15: 11,
     16: 15,
