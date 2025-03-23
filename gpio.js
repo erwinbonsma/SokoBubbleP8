@@ -95,7 +95,8 @@ function updateBestTotalScores(totalScore, player) {
     updateTotalHtmlTable(bestTotalScores);
 }
 
-function updatePlayerLevelScore(moveCount, levelIndex) {
+function updatePlayerLevelScore(moveCount, levelNum) {
+    const levelIndex = levelNum - 1;
     if (moveCount >= playerLevelScores[levelIndex]) return;
 
     playerLevelScores[levelIndex] = moveCount;
