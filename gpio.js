@@ -21,7 +21,7 @@ const maxTotalScore = 24000;
 // This should match what is sent from PICO-8 client after bootstrap.
 // It is duplicated here so that the Hall of Fame can be shown on the HTML page
 // when the PICO-8 game is not (yet) started.
-var levelIds = [1,2,3,4,6,7,24,8,9,16,17,21,23,10,11,15,12,14,20,26,13,18,19,22];
+var levelIds = [1,2,3,4,6,7,24,27,8,9,16,17,21,10,11,15,12,14,20,26,13,18,19,22];
 
 var bestLevelScores = Array(hofSizeLevels).fill(null).map(_ => ["-", maxLevelScore]);
 var bestTotalScores = Array(hofSizeTotals).fill(null).map(_ => ["-", maxTotalScore]);
