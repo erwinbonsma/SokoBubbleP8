@@ -1998,6 +1998,10 @@ function show_stats(cb)
 
  _statsview.hide_callback=cb
 
+ --update player stats in case
+ --name has changed
+ post_playername()
+
  scene=_statsview
 end
 
@@ -2445,13 +2449,25 @@ function parse_hof(s)
  return hof
 end
 
+function parse_plyr(s)
+ local f=split(s)
+ local scores={}
+ for i=1,#f do
+  add(scores,tonum(f[i]))
+ end
+ return scores
+end
+
 function received_msg(s)
  printh("received: "..s)
  local hdr=sub(s,1,4)
+ local body=sub(s,5)
  if hdr=="lvl:" then
-  hof_lvl=parse_hof(sub(s,5))
+  hof_lvl=parse_hof(body)
  elseif hdr=="tot:" then
-  hof_tot=parse_hof(sub(s,5))
+  hof_tot=parse_hof(body)
+ elseif hdr=="ply:" then
+  onl_lvl=parse_plyr(body)
  end
 end
 
@@ -2480,12 +2496,19 @@ function short_mov_str(hist)
  return s
 end
 
+function post_playername()
+ local n=_mainmenu:plyr_name()
+ if (onl_name==n) return
+
+ _gpio:output("player,"..n)
+ onl_name=n
+end
+
 function post_levels()
  local s="levels"
  for i=1,#level_defs-1 do
   s..=","..level_defs[i].id
  end
- printh(s)
  _gpio:output(s)
 end
 
@@ -2500,7 +2523,6 @@ function post_result(lvl)
   )
  )
 
- printh(s)
  _gpio:output(s)
 end
 
@@ -2524,6 +2546,7 @@ function gpio:new(msg_cb,con_cb)
 end
 
 function gpio:output(s)
+ printh("gpio: "..s)
  if self.connected then
   add(self.txt_out,s)
  end

@@ -22,6 +22,7 @@ var levelIds = [1,2,3,4,6,7,24,8,9,16,17,21,23,10,11,15,12,14,20,26,13,18,19,22]
 
 var bestLevelScores = Array(hofSizeLevels).fill(null).map(_ => ["-", 999]);
 var bestTotalScores = Array(hofSizeTotals).fill(null).map(_ => ["-", 24000]);
+var playerLevelScores = Array(hofSizeLevels).fill(null).map(_ => 999);
 var gpioConnected = false;
 var gpioTxtIn = "";
 var gpioTxtOut = [];
@@ -169,6 +170,12 @@ function gpioRead() {
                 // updating just in case.
                 updateLevelHtmlTable(bestLevelScores);
             }
+        } else if (msgId === "player") {
+            if (args.length != 2) {
+                console.warn("Unexpected length");
+            } else {
+                fetchOnlinePlayerScores(args[1]);
+            }
         } else {
             console.warn(`Unexpected message: ${msgId}`);
         }
@@ -224,6 +231,23 @@ function sendTotalScores() {
     sendScores(bestTotalScores, "tot:");
 }
 
+function sendPlayerLevelScores() {
+    const msg = "ply:" + playerLevelScores.join();
+    console.info(msg);
+    gpioTxtOut.push(msg);
+}
+
+function handlePlayerLevelScores(scores) {
+    for (let i = 0; i < hofSizeLevels; i++) {
+        const score = scores[levelIds[i].toString()];
+        if (score !== undefined) {
+            playerLevelScores[i] = score;
+        }
+    }
+
+    sendPlayerLevelScores();
+}
+
 function handleBestLevelScores(scores) {
     for (let i = 0; i < hofSizeLevels; i++) {
         const entry = scores[levelIds[i].toString()];
@@ -245,14 +269,21 @@ function handleBestTotalScores(scores) {
     updateTotalHtmlTable(bestTotalScores);
 }
 
-async function fetchHallOfFame() {
-    const response = await fetch(`${hofServiceUrl}?id=${tableId}&key=id`);
+async function fetchOnlineScores() {
+    const response = await fetch(`${queryServiceUrl}?id=${tableId}`);
     const responseJson = await response.json(); //extract JSON from the http response
 
-    handleBestLevelScores(responseJson.hallOfFame);
+    handleBestLevelScores(responseJson.levelScores);
     handleBestTotalScores(responseJson.totalScores);
+}
+
+async function fetchOnlinePlayerScores(player) {
+    const response = await fetch(`${queryServiceUrl}?id=${tableId}&name=${player}`);
+    const responseJson = await response.json(); //extract JSON from the http response
+
+    handlePlayerLevelScores(responseJson.playerLevelScores);
 }
 
 window.setInterval(gpioUpdate, 100);
 
-fetchHallOfFame();
+fetchOnlineScores();
