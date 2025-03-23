@@ -91,14 +91,3 @@ def copy_old_hof_entries(event, context):
         try_update_hof_entry(table_id, level_completion)
 
     return request_handled()
-
-
-def handler(event, context):
-    method = event["requestContext"]["http"]["method"]
-    if method == "POST":
-        return copy_old_hof_entries(event, context)
-    elif method == "OPTIONS":
-        return request_handled()
-
-    logger.error(f"Unsupported event: {event}")
-    return bad_request()
